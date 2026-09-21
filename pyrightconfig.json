@@ -1,0 +1,9 @@
+{
+  "venvPath": ".",
+  "venv": ".venv311",
+  "extraPaths": [
+    "."
+  ],
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Darwin"
+}

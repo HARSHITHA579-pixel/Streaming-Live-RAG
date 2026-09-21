@@ -1,0 +1,25 @@
+# Streaming RAG Dependencies
+# DO NOT automatically install during scaffold setup.
+
+# FastAPI & WebSockets
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
+websockets>=12.0
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+
+# Retrieval & NLP
+rank-bm25>=0.2.2
+numpy>=1.26.0
+scikit-learn>=1.4.0
+
+# LLM & Embeddings Clients (to be selected based on provider, e.g., google-genai / openai / cohere)
+google-genai>=0.1.0
+cohere>=5.5.0
+
+# Evaluation & Utilities
+tqdm>=4.66.0
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+aiofiles>=23.2.1
+python-dotenv>=1.0.1

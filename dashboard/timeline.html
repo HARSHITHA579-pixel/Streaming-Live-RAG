@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming RAG - Telemetry Timeline Dashboard</title>
+    <!--
+    ============================================================================
+    RESPONSIBILITY:
+    - Interactive visual dashboard for inspecting session telemetry JSONL logs.
+    - Visualize the real-time execution lifecycle of a streaming conversation:
+        1. Transcript ingestion timeline & T0 stability deltas.
+        2. T1 decisions (retrieve flag, refinement status, sub-query decomposition).
+        3. Per-sub-query retrieval ranks, BM25/Dense fusion, and cross-encoder reranking.
+        4. Structured claim synthesis & claim-by-claim verification states.
+        5. Grounded citations, uncertainty notes, and incremental answer versions.
+        6. Latency waterfall chart (Time-to-First-Chunk, Retrieval ms, Verifier ms).
+
+    TODO FOR IMPLEMENTATION:
+    - Load JSONL log files via drag-and-drop or FastAPI `/telemetry/{session_id}` endpoint.
+    - Implement interactive timeline visualization (using Vanilla CSS / SVG / lightweight charts).
+    - Provide expandable inspection cards for every retrieved chunk (content, score, section provenance).
+    - Color-code claim verification badges (Green: SUPPORTED, Yellow: PARTIALLY_SUPPORTED, Red: UNSUPPORTED).
+    - Render answer diffs between answer versions (v1 -> v2).
+    ============================================================================
+    -->
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-blue: #38bdf8;
+            --accent-green: #4ade80;
+            --accent-yellow: #facc15;
+            --accent-red: #f87171;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding: 24px;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        input[type="file"], input[type="text"], button {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+        }
+
+        button {
+            cursor: pointer;
+            background-color: #2563eb;
+            border: none;
+            font-weight: 500;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background-color: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .card-header {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .placeholder-text {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.875rem;
+            padding: 20px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>Streaming RAG Telemetry Dashboard</h1>
+            <p style="color: var(--text-muted); font-size: 0.875rem;">Session Inspection & Execution Timeline</p>
+        </div>
+        <div class="controls">
+            <!-- TODO: Bind file input to JSONL parser -->
+            <input type="file" id="logFileInput" accept=".jsonl,.json">
+            <input type="text" id="sessionIdInput" placeholder="Enter Session ID">
+            <button id="loadBtn" onclick="alert('TODO: Connect to /telemetry/{session_id} or load local JSONL log file.')">Load Session</button>
+        </div>
+    </header>
+
+    <main class="dashboard-grid">
+        <!-- Panel 1: Timeline Events & Controller Decisions -->
+        <section class="card" id="timelinePanel">
+            <div class="card-header">1. Controller & Intent Stream</div>
+            <div class="placeholder-text">
+                <!-- TODO: Render T0 gate checks, T1 intent decomposition, and refinement events -->
+                No session loaded. Load a session JSONL log to visualize T0 stability gates and T1 multi-intent decisions.
+            </div>
+        </section>
+
+        <!-- Panel 2: Retrieval & Reranker Evidence Pool -->
+        <section class="card" id="retrievalPanel">
+            <div class="card-header">2. Multi-Intent Retrieval & Reranking</div>
+            <div class="placeholder-text">
+                <!-- TODO: Render per-sub-query BM25, Dense, RRF ranks, and final cross-encoder evidence chunks -->
+                No retrieval data. Will display candidate chunks, fusion scores, and minimum evidence guarantees.
+            </div>
+        </section>
+
+        <!-- Panel 3: Structured Claim Verification -->
+        <section class="card" id="verificationPanel">
+            <div class="card-header">3. Claim-Level Grounding & Verification</div>
+            <div class="placeholder-text">
+                <!-- TODO: Render claims, badges (SUPPORTED, PARTIALLY_SUPPORTED, UNSUPPORTED), and citations -->
+                No claim data. Will display atomic claims, cheap check results, batched LLM verifications, and citation links.
+            </div>
+        </section>
+
+        <!-- Panel 4: Latency Waterfall & Output Stream -->
+        <section class="card" id="outputPanel">
+            <div class="card-header">4. Stream Output & Latency Breakdown</div>
+            <div class="placeholder-text">
+                <!-- TODO: Render final streamed answer versions, uncertainty notes, and latency waterfall chart -->
+                No stream data. Will display incremental answer versions, latency breakdown (T0, T1, Retrieval, Verification), and citations.
+            </div>
+        </section>
+    </main>
+
+    <script>
+        // TODO: Implement JSONL log parser
+        // TODO: Implement DOM rendering functions for timeline, retrieval table, claim cards, and latency metrics
+        console.log("Streaming RAG Timeline Dashboard initialized. Implementation pending.");
+    </script>
+</body>
+</html>
