@@ -1,0 +1,18 @@
+{
+  "scenario": "refinement",
+  "description": "Tests multi-turn session refinement with state preservation, delta retrieval, and answer version progression.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "What is the expense reimbursement submission timeline?",
+      "is_final": true,
+      "expected_intents": ["expense reimbursement submission timeline"]
+    },
+    {
+      "timestamp_offset_ms": 300,
+      "text_chunk": "Actually, I mean international travel currency conversion rules.",
+      "is_final": true,
+      "expected_intents": ["international travel currency conversion rules"]
+    }
+  ]
+}

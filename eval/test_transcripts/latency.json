@@ -1,0 +1,12 @@
+{
+  "scenario": "latency",
+  "description": "Tests end-to-end latency measurement across T0, T1, retrieval, synthesis, verification, and total turn latency.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "What is the policy on corporate flight booking and reimbursement limits?",
+      "is_final": true,
+      "expected_intents": ["corporate flight booking and reimbursement limits"]
+    }
+  ]
+}

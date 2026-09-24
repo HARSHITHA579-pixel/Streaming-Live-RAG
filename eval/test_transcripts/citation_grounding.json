@@ -1,0 +1,12 @@
+{
+  "scenario": "citation_grounding",
+  "description": "Tests that all claims in generated answer include valid citations tied directly to retrieved corpus chunks.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "What are the rules for travel reimbursement and hotel bookings?",
+      "is_final": true,
+      "expected_intents": ["travel reimbursement and hotel bookings"]
+    }
+  ]
+}

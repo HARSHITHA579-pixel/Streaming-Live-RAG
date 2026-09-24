@@ -3,39 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streaming RAG - Telemetry Timeline Dashboard</title>
-    <!--
-    ============================================================================
-    RESPONSIBILITY:
-    - Interactive visual dashboard for inspecting session telemetry JSONL logs.
-    - Visualize the real-time execution lifecycle of a streaming conversation:
-        1. Transcript ingestion timeline & T0 stability deltas.
-        2. T1 decisions (retrieve flag, refinement status, sub-query decomposition).
-        3. Per-sub-query retrieval ranks, BM25/Dense fusion, and cross-encoder reranking.
-        4. Structured claim synthesis & claim-by-claim verification states.
-        5. Grounded citations, uncertainty notes, and incremental answer versions.
-        6. Latency waterfall chart (Time-to-First-Chunk, Retrieval ms, Verifier ms).
-
-    TODO FOR IMPLEMENTATION:
-    - Load JSONL log files via drag-and-drop or FastAPI `/telemetry/{session_id}` endpoint.
-    - Implement interactive timeline visualization (using Vanilla CSS / SVG / lightweight charts).
-    - Provide expandable inspection cards for every retrieved chunk (content, score, section provenance).
-    - Color-code claim verification badges (Green: SUPPORTED, Yellow: PARTIALLY_SUPPORTED, Red: UNSUPPORTED).
-    - Render answer diffs between answer versions (v1 -> v2).
-    ============================================================================
-    -->
+    <title>Streaming Live RAG — Observability & Execution Timeline</title>
     <style>
         :root {
-            --bg-color: #0f172a;
-            --surface-color: #1e293b;
-            --border-color: #334155;
-            --text-primary: #f8fafc;
+            --bg-base: #090d16;
+            --bg-surface: #111827;
+            --bg-card: #182234;
+            --bg-card-hover: #1e2d44;
+            --bg-input: #0e1524;
+            --border-subtle: #233148;
+            --border-focus: #38bdf8;
+            --text-main: #f1f5f9;
             --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            
+            --accent-cyan: #06b6d4;
             --accent-blue: #38bdf8;
-            --accent-green: #4ade80;
-            --accent-yellow: #facc15;
-            --accent-red: #f87171;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --accent-indigo: #818cf8;
+            --accent-purple: #c084fc;
+            --accent-green: #10b981;
+            --accent-green-bg: rgba(16, 185, 129, 0.15);
+            --accent-amber: #f59e0b;
+            --accent-amber-bg: rgba(245, 158, 11, 0.15);
+            --accent-red: #ef4444;
+            --accent-red-bg: rgba(239, 68, 68, 0.15);
+            
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 14px;
+            --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.35);
         }
 
         * {
@@ -45,142 +44,1504 @@
         }
 
         body {
-            font-family: var(--font-family);
-            background-color: var(--bg-color);
-            color: var(--text-primary);
+            font-family: var(--font-sans);
+            background-color: var(--bg-base);
+            color: var(--text-main);
             line-height: 1.5;
-            padding: 24px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
+        /* Top Header */
         header {
+            background: linear-gradient(180deg, #131c2e 0%, var(--bg-surface) 100%);
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 16px 28px;
             display: flex;
+            flex-wrap: wrap;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 16px;
-            margin-bottom: 24px;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
         }
 
-        h1 {
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: var(--accent-blue);
-        }
-
-        .controls {
+        .brand-group {
             display: flex;
-            gap: 12px;
             align-items: center;
+            gap: 14px;
         }
 
-        input[type="file"], input[type="text"], button {
-            background-color: var(--surface-color);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.875rem;
+        .brand-logo {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-md);
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-indigo));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.15rem;
+            color: #ffffff;
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.35);
         }
 
-        button {
-            cursor: pointer;
-            background-color: #2563eb;
-            border: none;
-            font-weight: 500;
+        .brand-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
-        button:hover {
-            background-color: #1d4ed8;
-        }
-
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-        }
-
-        .card {
-            background-color: var(--surface-color);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 16px;
-        }
-
-        .card-header {
-            font-size: 1rem;
-            font-weight: 600;
-            margin-bottom: 12px;
+        .brand-subtitle {
+            font-size: 0.8rem;
             color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Controls */
+        .controls-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-box, select, button {
+            font-family: inherit;
+            font-size: 0.825rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-subtle);
+            background-color: var(--bg-input);
+            color: var(--text-main);
+            padding: 7px 12px;
+            outline: none;
+            transition: all 0.15s ease;
+        }
+
+        .input-box:focus, select:focus {
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        .btn {
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            color: #ffffff;
+        }
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #0369a1, #1d4ed8);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+        }
+        .btn-secondary:hover {
+            background-color: var(--bg-card-hover);
+            border-color: var(--text-dim);
+        }
+
+        .file-upload-btn {
+            position: relative;
+            overflow: hidden;
+        }
+        .file-upload-btn input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .toggle-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            user-select: none;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }
 
-        .placeholder-text {
+        .badge-live {
+            background: var(--accent-green-bg);
+            color: var(--accent-green);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-disconnected {
+            background: var(--accent-red-bg);
+            color: var(--accent-red);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-file {
+            background: rgba(129, 140, 248, 0.15);
+            color: var(--accent-indigo);
+            border: 1px solid rgba(129, 140, 248, 0.3);
+        }
+
+        .badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: currentColor;
+        }
+
+        /* Metric Highlights in Header */
+        .header-metrics {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-left: 1px solid var(--border-subtle);
+            padding-left: 16px;
+        }
+
+        .header-metric-item {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .header-metric-label {
+            font-size: 0.675rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        .header-metric-val {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            font-family: var(--font-mono);
+        }
+
+        /* Main Container */
+        main {
+            flex: 1;
+            padding: 20px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 1700px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Pipeline Overview Bar */
+        .pipeline-overview-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 16px 20px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .pipeline-header {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
             color: var(--text-muted);
-            font-style: italic;
-            font-size: 0.875rem;
-            padding: 20px 0;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .pipeline-steps-grid {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            position: relative;
+        }
+
+        .stage-step {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
+            position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .stage-step.active {
+            border-color: var(--accent-blue);
+            background: linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, var(--bg-card) 100%);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+        }
+
+        .stage-step.success {
+            border-color: rgba(16, 185, 129, 0.5);
+        }
+
+        .stage-step.warning {
+            border-color: rgba(245, 158, 11, 0.5);
+        }
+
+        .stage-num {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .stage-name {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        .stage-latency {
+            font-size: 0.725rem;
+            font-family: var(--font-mono);
+            color: var(--accent-cyan);
+            font-weight: 600;
+            background: rgba(6, 182, 212, 0.1);
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+        }
+
+        /* Dashboard Multi-Column Layout */
+        .grid-layout-main {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 1300px) {
+            .grid-layout-main {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 850px) {
+            .grid-layout-main {
+                grid-template-columns: 1fr;
+            }
+            .pipeline-steps-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        /* Dashboard Panels */
+        .panel-card {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: var(--shadow-card);
+        }
+
+        .panel-header {
+            padding: 14px 18px;
+            background: linear-gradient(180deg, var(--bg-card) 0%, rgba(24, 34, 52, 0.4) 100%);
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .panel-body {
+            padding: 16px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            overflow-y: auto;
+            max-height: 620px;
+        }
+
+        /* Custom Scrollbars */
+        .panel-body::-webkit-scrollbar {
+            width: 6px;
+        }
+        .panel-body::-webkit-scrollbar-thumb {
+            background: var(--border-subtle);
+            border-radius: 3px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 32px 16px;
+            text-align: center;
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            font-style: italic;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        /* Stream Timeline Items */
+        .timeline-stream {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+        }
+
+        .timeline-stream::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            bottom: 10px;
+            left: 16px;
+            width: 2px;
+            background-color: var(--border-subtle);
+            z-index: 1;
+        }
+
+        .timeline-node {
+            display: flex;
+            gap: 14px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .timeline-icon-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--bg-card);
+            border: 2px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            flex-shrink: 0;
+        }
+
+        .timeline-node.active .timeline-icon-dot {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+            background-color: rgba(56, 189, 248, 0.1);
+        }
+
+        .timeline-content {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 10px 14px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .timeline-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+        }
+
+        .event-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: var(--radius-sm);
+            text-transform: uppercase;
+        }
+
+        .tag-t0 { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); }
+        .tag-t1 { background: rgba(56, 189, 248, 0.2); color: var(--accent-blue); }
+        .tag-retrieval { background: rgba(129, 140, 248, 0.2); color: var(--accent-indigo); }
+        .tag-synthesis { background: rgba(192, 132, 252, 0.2); color: var(--accent-purple); }
+        .tag-verify { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); }
+        .tag-e2e { background: rgba(6, 182, 212, 0.2); color: var(--accent-cyan); }
+
+        .timeline-text {
+            font-size: 0.85rem;
+            color: var(--text-main);
+            word-break: break-word;
+        }
+
+        /* Subquery Pills */
+        .subquery-pills-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .subquery-pill {
+            background-color: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            border-radius: var(--radius-sm);
+            padding: 6px 10px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .subquery-id {
+            background-color: var(--accent-blue);
+            color: #090d16;
+            font-weight: 800;
+            font-size: 0.675rem;
+            padding: 1px 5px;
+            border-radius: 4px;
+            margin-top: 2px;
+        }
+
+        /* Chunk / Evidence Cards */
+        .chunk-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: border-color 0.15s ease;
+        }
+
+        .chunk-card:hover {
+            border-color: var(--accent-indigo);
+        }
+
+        .chunk-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.775rem;
+        }
+
+        .chunk-id-tag {
+            font-family: var(--font-mono);
+            font-weight: 700;
+            color: var(--accent-indigo);
+            background: rgba(129, 140, 248, 0.15);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .chunk-score {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        .chunk-doc-sec {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .chunk-snippet {
+            font-size: 0.8rem;
+            color: var(--text-main);
+            background-color: var(--bg-input);
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
+            border-left: 3px solid var(--accent-indigo);
+            font-family: var(--font-sans);
+            line-height: 1.4;
+        }
+
+        /* Claim Verification Cards */
+        .claim-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .claim-card.supported {
+            border-left: 4px solid var(--accent-green);
+        }
+        .claim-card.partially_supported {
+            border-left: 4px solid var(--accent-amber);
+        }
+        .claim-card.unsupported {
+            border-left: 4px solid var(--accent-red);
+        }
+
+        .claim-status-badge {
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-supported { background: var(--accent-green-bg); color: var(--accent-green); }
+        .status-partially_supported { background: var(--accent-amber-bg); color: var(--accent-amber); }
+        .status-unsupported { background: var(--accent-red-bg); color: var(--accent-red); }
+
+        .citations-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .citation-tag {
+            font-family: var(--font-mono);
+            font-size: 0.725rem;
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--accent-blue);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        /* Latency Waterfall Chart */
+        .waterfall-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .waterfall-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .waterfall-label-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .waterfall-bar-track {
+            height: 10px;
+            background-color: var(--bg-input);
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .waterfall-bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        /* Rendered Answer Card */
+        .answer-box {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .answer-version-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(192, 132, 252, 0.15);
+            border: 1px solid rgba(192, 132, 252, 0.35);
+            color: var(--accent-purple);
+            font-weight: 700;
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: var(--radius-sm);
+            width: fit-content;
+        }
+
+        .answer-content-text {
+            font-size: 0.875rem;
+            color: var(--text-main);
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .uncertainty-alert {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            font-size: 0.8rem;
+            color: #fde68a;
+        }
+
+        footer {
+            margin-top: auto;
+            border-top: 1px solid var(--border-subtle);
+            padding: 14px 28px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            background-color: var(--bg-surface);
         }
     </style>
 </head>
 <body>
 
+    <!-- Header Navigation & Controls -->
     <header>
-        <div>
-            <h1>Streaming RAG Telemetry Dashboard</h1>
-            <p style="color: var(--text-muted); font-size: 0.875rem;">Session Inspection & Execution Timeline</p>
+        <div class="brand-group">
+            <div class="brand-logo">SR</div>
+            <div>
+                <div class="brand-title">STREAMING LIVE RAG <span style="font-size: 0.7rem; font-weight: 600; color: var(--accent-cyan); background: rgba(6,182,212,0.15); border: 1px solid rgba(6,182,212,0.3); padding: 2px 6px; border-radius: 4px;">OBSERVABILITY</span></div>
+                <div class="brand-subtitle">Real-Time Retrieval, Grounding & Execution Timeline</div>
+            </div>
         </div>
-        <div class="controls">
-            <!-- TODO: Bind file input to JSONL parser -->
-            <input type="file" id="logFileInput" accept=".jsonl,.json">
-            <input type="text" id="sessionIdInput" placeholder="Enter Session ID">
-            <button id="loadBtn" onclick="alert('TODO: Connect to /telemetry/{session_id} or load local JSONL log file.')">Load Session</button>
+
+        <div class="controls-toolbar">
+            <!-- Preset Demo Selector -->
+            <select id="demoScenarioSelect" title="Select pre-recorded benchmark session">
+                <option value="">-- Load Demo Scenario --</option>
+                <option value="eval_multi_intent">Demo: Multi-Intent Decomposition</option>
+                <option value="eval_refinement">Demo: Multi-Turn Refinement (v1 -> v2)</option>
+                <option value="eval_partial_streaming">Demo: Partial Streaming & T0 WAIT</option>
+                <option value="eval_citation_grounding">Demo: Citation Grounding</option>
+                <option value="eval_unsupported_query">Demo: Unsupported Query / Uncertainty</option>
+                <option value="eval_no_retrieval">Demo: No-Retrieval Bypass</option>
+                <option value="eval_latency">Demo: Latency Benchmarks</option>
+            </select>
+
+            <!-- Manual Session Input -->
+            <input type="text" id="sessionIdInput" class="input-box" placeholder="Enter Session ID (e.g. test_single_intent)" style="width: 230px;">
+            <button id="loadSessionBtn" class="btn btn-primary">Load Session</button>
+
+            <!-- Local JSONL File Upload -->
+            <button class="btn btn-secondary file-upload-btn">
+                <span>📁 Load JSONL</span>
+                <input type="file" id="localJsonlInput" accept=".jsonl,.json">
+            </button>
+
+            <!-- Auto Refresh Toggle -->
+            <label class="toggle-wrap">
+                <input type="checkbox" id="autoRefreshToggle"> Auto-Refresh (1s)
+            </label>
+
+            <!-- Status Badge -->
+            <div id="connectionStatusBadge" class="status-badge badge-live">
+                <span class="badge-dot"></span>
+                <span id="connectionStatusText">Ready</span>
+            </div>
+
+            <!-- Header Quick Metrics -->
+            <div class="header-metrics">
+                <div class="header-metric-item">
+                    <span class="header-metric-label">Answer Version</span>
+                    <span class="header-metric-val" id="headerAnswerVersion">v0</span>
+                </div>
+                <div class="header-metric-item">
+                    <span class="header-metric-label">E2E Latency</span>
+                    <span class="header-metric-val" id="headerE2ELatency">0.0 ms</span>
+                </div>
+            </div>
         </div>
     </header>
 
-    <main class="dashboard-grid">
-        <!-- Panel 1: Timeline Events & Controller Decisions -->
-        <section class="card" id="timelinePanel">
-            <div class="card-header">1. Controller & Intent Stream</div>
-            <div class="placeholder-text">
-                <!-- TODO: Render T0 gate checks, T1 intent decomposition, and refinement events -->
-                No session loaded. Load a session JSONL log to visualize T0 stability gates and T1 multi-intent decisions.
+    <main>
+        <!-- Pipeline Flow Overview -->
+        <section class="pipeline-overview-card">
+            <div class="pipeline-header">
+                <span>⚡ Live Pipeline Execution Flow</span>
+                <span id="pipelineSessionLabel" style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--accent-blue);">No Session Loaded</span>
+            </div>
+            <div class="pipeline-steps-grid">
+                <div class="stage-step" id="stageStepTranscript">
+                    <span class="stage-num">01</span>
+                    <span class="stage-name">Transcript</span>
+                    <span class="stage-latency" id="latTranscript">Ready</span>
+                </div>
+                <div class="stage-step" id="stageStepT0">
+                    <span class="stage-num">02</span>
+                    <span class="stage-name">T0 Stability</span>
+                    <span class="stage-latency" id="latT0">-</span>
+                </div>
+                <div class="stage-step" id="stageStepT1">
+                    <span class="stage-num">03</span>
+                    <span class="stage-name">T1 Router</span>
+                    <span class="stage-latency" id="latT1">-</span>
+                </div>
+                <div class="stage-step" id="stageStepRetrieval">
+                    <span class="stage-num">04</span>
+                    <span class="stage-name">Retrieval</span>
+                    <span class="stage-latency" id="latRetrieval">-</span>
+                </div>
+                <div class="stage-step" id="stageStepRRF">
+                    <span class="stage-num">05</span>
+                    <span class="stage-name">RRF Fusion</span>
+                    <span class="stage-latency" id="latRRF">-</span>
+                </div>
+                <div class="stage-step" id="stageStepSynthesis">
+                    <span class="stage-num">06</span>
+                    <span class="stage-name">Synthesis</span>
+                    <span class="stage-latency" id="latSynthesis">-</span>
+                </div>
+                <div class="stage-step" id="stageStepVerify">
+                    <span class="stage-num">07</span>
+                    <span class="stage-name">Grounding</span>
+                    <span class="stage-latency" id="latVerify">-</span>
+                </div>
+                <div class="stage-step" id="stageStepAnswer">
+                    <span class="stage-num">08</span>
+                    <span class="stage-name">Verified Answer</span>
+                    <span class="stage-latency" id="latAnswer">-</span>
+                </div>
             </div>
         </section>
 
-        <!-- Panel 2: Retrieval & Reranker Evidence Pool -->
-        <section class="card" id="retrievalPanel">
-            <div class="card-header">2. Multi-Intent Retrieval & Reranking</div>
-            <div class="placeholder-text">
-                <!-- TODO: Render per-sub-query BM25, Dense, RRF ranks, and final cross-encoder evidence chunks -->
-                No retrieval data. Will display candidate chunks, fusion scores, and minimum evidence guarantees.
-            </div>
-        </section>
+        <!-- Main Multi-Column Grid -->
+        <div class="grid-layout-main">
 
-        <!-- Panel 3: Structured Claim Verification -->
-        <section class="card" id="verificationPanel">
-            <div class="card-header">3. Claim-Level Grounding & Verification</div>
-            <div class="placeholder-text">
-                <!-- TODO: Render claims, badges (SUPPORTED, PARTIALLY_SUPPORTED, UNSUPPORTED), and citations -->
-                No claim data. Will display atomic claims, cheap check results, batched LLM verifications, and citation links.
-            </div>
-        </section>
+            <!-- Column 1: Stream Timeline & Controller Decisions -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Panel: Execution Timeline -->
+                <section class="panel-card">
+                    <div class="panel-header">
+                        <span class="panel-title">⏱️ Chronological Event Stream</span>
+                        <span id="eventCountBadge" style="font-size: 0.75rem; color: var(--text-dim); font-family: var(--font-mono);">0 Events</span>
+                    </div>
+                    <div class="panel-body" id="timelineStreamContainer">
+                        <div class="empty-state">
+                            <span>No telemetry loaded yet.</span>
+                            <span>Select a demo scenario or load a session log to begin.</span>
+                        </div>
+                    </div>
+                </section>
 
-        <!-- Panel 4: Latency Waterfall & Output Stream -->
-        <section class="card" id="outputPanel">
-            <div class="card-header">4. Stream Output & Latency Breakdown</div>
-            <div class="placeholder-text">
-                <!-- TODO: Render final streamed answer versions, uncertainty notes, and latency waterfall chart -->
-                No stream data. Will display incremental answer versions, latency breakdown (T0, T1, Retrieval, Verification), and citations.
+                <!-- Panel: T0 Stability & T1 Controller Details -->
+                <section class="panel-card">
+                    <div class="panel-header">
+                        <span class="panel-title">🧠 Controller Reasoning & Gating</span>
+                        <span id="t0ActionBadge" class="status-badge" style="display: none;">-</span>
+                    </div>
+                    <div class="panel-body" id="controllerDetailsContainer">
+                        <div class="empty-state">Waiting for controller telemetry...</div>
+                    </div>
+                </section>
             </div>
-        </section>
+
+            <!-- Column 2: Hybrid Retrieval & Evidence Pool -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Panel: Multi-Intent Retrieval & RRF Evidence -->
+                <section class="panel-card">
+                    <div class="panel-header">
+                        <span class="panel-title">🔍 Hybrid Retrieval & RRF Ranking</span>
+                        <span id="evidenceCountBadge" style="font-size: 0.75rem; color: var(--accent-indigo); font-family: var(--font-mono);">0 Chunks</span>
+                    </div>
+                    <div class="panel-body" id="retrievalEvidenceContainer">
+                        <div class="empty-state">No retrieval chunks observed in this session.</div>
+                    </div>
+                </section>
+
+                <!-- Panel: Latency Waterfall Breakdown -->
+                <section class="panel-card">
+                    <div class="panel-header">
+                        <span class="panel-title">📊 Latency Breakdown Waterfall</span>
+                        <span id="totalTurnLatencyBadge" style="font-size: 0.75rem; color: var(--accent-cyan); font-family: var(--font-mono); font-weight: 700;">-</span>
+                    </div>
+                    <div class="panel-body" id="latencyWaterfallContainer">
+                        <div class="empty-state">No latency telemetry recorded.</div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Column 3: Grounding, Verification & Verified Streamed Output -->
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+                <!-- Panel: Grounding & Claim-by-Claim Verification -->
+                <section class="panel-card">
+                    <div class="panel-header">
+                        <span class="panel-title">🛡️ Grounding & Claim Verification</span>
+                        <span id="claimsCountBadge" style="font-size: 0.75rem; color: var(--accent-green); font-family: var(--font-mono);">0 Claims</span>
+                    </div>
+                    <div class="panel-body" id="claimVerificationContainer">
+                        <div class="empty-state">No claim verification telemetry observed.</div>
+                    </div>
+                </section>
+
+                <!-- Panel: Streamed Output & Answer Versioning -->
+                <section class="panel-card">
+                    <div class="panel-header">
+                        <span class="panel-title">📝 Verified Stream Output</span>
+                        <span id="answerVersionPill" class="status-badge badge-file" style="display: none;">v1</span>
+                    </div>
+                    <div class="panel-body" id="streamOutputContainer">
+                        <div class="empty-state">No answer generated for this turn.</div>
+                    </div>
+                </section>
+            </div>
+
+        </div>
     </main>
 
+    <footer>
+        Streaming Live RAG — Hackathon Observability Dashboard | Built with native HTML5/CSS3/Vanilla JS & FastAPI Telemetry
+    </footer>
+
     <script>
-        // TODO: Implement JSONL log parser
-        // TODO: Implement DOM rendering functions for timeline, retrieval table, claim cards, and latency metrics
-        console.log("Streaming RAG Timeline Dashboard initialized. Implementation pending.");
+        /**
+         * State Management
+         */
+        const state = {
+            currentSessionId: "",
+            events: [],
+            autoRefreshTimer: null,
+            isLocalFile: false
+        };
+
+        // DOM Elements
+        const sessionIdInput = document.getElementById("sessionIdInput");
+        const loadSessionBtn = document.getElementById("loadSessionBtn");
+        const demoScenarioSelect = document.getElementById("demoScenarioSelect");
+        const localJsonlInput = document.getElementById("localJsonlInput");
+        const autoRefreshToggle = document.getElementById("autoRefreshToggle");
+        const connectionStatusBadge = document.getElementById("connectionStatusBadge");
+        const connectionStatusText = document.getElementById("connectionStatusText");
+        const pipelineSessionLabel = document.getElementById("pipelineSessionLabel");
+        const headerAnswerVersion = document.getElementById("headerAnswerVersion");
+        const headerE2ELatency = document.getElementById("headerE2ELatency");
+
+        // Containers
+        const timelineStreamContainer = document.getElementById("timelineStreamContainer");
+        const controllerDetailsContainer = document.getElementById("controllerDetailsContainer");
+        const retrievalEvidenceContainer = document.getElementById("retrievalEvidenceContainer");
+        const latencyWaterfallContainer = document.getElementById("latencyWaterfallContainer");
+        const claimVerificationContainer = document.getElementById("claimVerificationContainer");
+        const streamOutputContainer = document.getElementById("streamOutputContainer");
+
+        // Badges
+        const eventCountBadge = document.getElementById("eventCountBadge");
+        const evidenceCountBadge = document.getElementById("evidenceCountBadge");
+        const claimsCountBadge = document.getElementById("claimsCountBadge");
+        const totalTurnLatencyBadge = document.getElementById("totalTurnLatencyBadge");
+
+        // Latency indicators
+        const latT0 = document.getElementById("latT0");
+        const latT1 = document.getElementById("latT1");
+        const latRetrieval = document.getElementById("latRetrieval");
+        const latRRF = document.getElementById("latRRF");
+        const latSynthesis = document.getElementById("latSynthesis");
+        const latVerify = document.getElementById("latVerify");
+        const latAnswer = document.getElementById("latAnswer");
+
+        /**
+         * Event Listeners
+         */
+        loadSessionBtn.addEventListener("click", () => {
+            const sid = sessionIdInput.value.trim();
+            if (sid) {
+                state.isLocalFile = false;
+                fetchSessionTelemetry(sid);
+            }
+        });
+
+        sessionIdInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") {
+                const sid = sessionIdInput.value.trim();
+                if (sid) {
+                    state.isLocalFile = false;
+                    fetchSessionTelemetry(sid);
+                }
+            }
+        });
+
+        demoScenarioSelect.addEventListener("change", (e) => {
+            const val = e.target.value;
+            if (!val) return;
+            state.isLocalFile = false;
+            fetchDemoScenario(val);
+        });
+
+        localJsonlInput.addEventListener("change", handleFileUpload);
+
+        autoRefreshToggle.addEventListener("change", (e) => {
+            if (e.target.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        });
+
+        /**
+         * Fetch Telemetry from FastAPI /telemetry/{session_id}
+         */
+        async function fetchSessionTelemetry(sessionId) {
+            setConnectionStatus("loading", `Loading ${sessionId}...`);
+            try {
+                const res = await fetch(`/telemetry/${encodeURIComponent(sessionId)}`);
+                if (!res.ok) {
+                    throw new Error(`Session '${sessionId}' not found (HTTP ${res.status})`);
+                }
+                const data = await res.json();
+                state.currentSessionId = sessionId;
+                state.events = data.events || [];
+                renderDashboard(state.currentSessionId, state.events);
+                setConnectionStatus("live", `Connected (${sessionId})`);
+            } catch (err) {
+                console.warn("Backend fetch failed, attempting fallback or reporting:", err);
+                setConnectionStatus("disconnected", err.message || "Backend Disconnected");
+            }
+        }
+
+        /**
+         * Demo Scenario Loader
+         * Loads pre-computed benchmark session data or attempts API fetch
+         */
+        async function fetchDemoScenario(scenarioKey) {
+            setConnectionStatus("loading", `Loading Demo ${scenarioKey}...`);
+            
+            // Try fetching from API first if running on server
+            try {
+                const res = await fetch(`/telemetry/${scenarioKey}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    state.currentSessionId = scenarioKey;
+                    state.events = data.events || [];
+                    renderDashboard(state.currentSessionId, state.events);
+                    setConnectionStatus("live", `Demo (${scenarioKey})`);
+                    return;
+                }
+            } catch (_) {}
+
+            // Fallback: Check if replay_results.json is accessible
+            try {
+                const replayRes = await fetch("/eval/results/replay_results.json");
+                if (replayRes.ok) {
+                    const replayData = await replayRes.json();
+                    const match = (replayData.results || []).find(r => r.scenario.includes(scenarioKey.replace("eval_", "")));
+                    if (match && match.telemetry_events) {
+                        state.currentSessionId = match.session_id;
+                        state.events = match.telemetry_events;
+                        renderDashboard(state.currentSessionId, state.events, match);
+                        setConnectionStatus("file", `Replay Demo (${match.scenario})`);
+                        return;
+                    }
+                }
+            } catch (_) {}
+
+            // Direct fetch fallback for session naming
+            fetchSessionTelemetry(scenarioKey);
+        }
+
+        /**
+         * Local JSONL File Reader
+         */
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            setConnectionStatus("loading", `Reading ${file.name}...`);
+            const reader = new FileReader();
+
+            reader.onload = function(evt) {
+                try {
+                    const content = evt.target.result;
+                    const lines = content.split(/\r?\n/);
+                    const parsedEvents = [];
+                    let malformedLines = 0;
+
+                    for (let i = 0; i < lines.length; i++) {
+                        const line = lines[i].trim();
+                        if (!line) continue;
+                        try {
+                            parsedEvents.push(JSON.parse(line));
+                        } catch (pErr) {
+                            malformedLines++;
+                        }
+                    }
+
+                    const inferredSessionId = file.name.replace(/^session_/, "").replace(/\.jsonl?$/, "");
+                    state.isLocalFile = true;
+                    state.currentSessionId = inferredSessionId;
+                    state.events = parsedEvents;
+
+                    renderDashboard(state.currentSessionId, state.events);
+                    setConnectionStatus("file", `Loaded ${file.name} (${parsedEvents.length} events${malformedLines ? `, ${malformedLines} skipped` : ''})`);
+                } catch (err) {
+                    alert(`Error parsing JSONL file: ${err.message}`);
+                    setConnectionStatus("disconnected", "File Parse Error");
+                }
+            };
+
+            reader.readAsText(file);
+        }
+
+        /**
+         * Auto Refresh Logic
+         */
+        function startAutoRefresh() {
+            if (state.autoRefreshTimer) clearInterval(state.autoRefreshTimer);
+            state.autoRefreshTimer = setInterval(() => {
+                if (state.currentSessionId && !state.isLocalFile) {
+                    fetchSessionTelemetry(state.currentSessionId);
+                }
+            }, 1000);
+        }
+
+        function stopAutoRefresh() {
+            if (state.autoRefreshTimer) {
+                clearInterval(state.autoRefreshTimer);
+                state.autoRefreshTimer = null;
+            }
+        }
+
+        function setConnectionStatus(type, text) {
+            connectionStatusBadge.className = `status-badge ${type === 'live' ? 'badge-live' : type === 'file' ? 'badge-file' : 'badge-disconnected'}`;
+            connectionStatusText.textContent = text;
+        }
+
+        /**
+         * Main Render Function
+         */
+        function renderDashboard(sessionId, events, replayMeta = null) {
+            pipelineSessionLabel.textContent = `Session: ${sessionId}`;
+            eventCountBadge.textContent = `${events.length} Events`;
+
+            if (!events || events.length === 0) {
+                timelineStreamContainer.innerHTML = `<div class="empty-state">No events recorded for session '${sessionId}'.</div>`;
+                controllerDetailsContainer.innerHTML = `<div class="empty-state">No controller data available.</div>`;
+                retrievalEvidenceContainer.innerHTML = `<div class="empty-state">No retrieval data available.</div>`;
+                claimVerificationContainer.innerHTML = `<div class="empty-state">No claims verified.</div>`;
+                latencyWaterfallContainer.innerHTML = `<div class="empty-state">No latency data.</div>`;
+                streamOutputContainer.innerHTML = `<div class="empty-state">No answer output.</div>`;
+                return;
+            }
+
+            // Categorize events
+            const t0Events = events.filter(e => (e.event === "T0_GATE" || e.event_type === "T0_GATE"));
+            const t1Events = events.filter(e => (e.event === "T1_DECISION" || e.event_type === "T1_DECISION"));
+            const retSummaryEvents = events.filter(e => (e.event === "RETRIEVAL" || e.event_type === "RETRIEVAL"));
+            const chunkEvents = events.filter(e => (e.event === "RETRIEVAL_CHUNK" || e.event === "RETRIEVAL_SUB_QUERY" || e.event_type === "RETRIEVAL_CHUNK"));
+            const synthEvents = events.filter(e => (e.event === "SYNTHESIS" || e.event_type === "SYNTHESIS"));
+            const verifyEvents = events.filter(e => (e.event === "CLAIM_VERIFY" || e.event_type === "CLAIM_VERIFY"));
+            const e2eEvents = events.filter(e => (e.event === "E2E" || e.event_type === "E2E"));
+
+            // 1. Render Timeline Stream
+            renderTimelineStream(events);
+
+            // 2. Render Controller (T0 & T1)
+            renderControllerSection(t0Events, t1Events);
+
+            // 3. Render Retrieval & Evidence
+            renderRetrievalSection(retSummaryEvents, chunkEvents);
+
+            // 4. Render Claim Verification
+            renderVerificationSection(verifyEvents);
+
+            // 5. Render Latency Breakdown
+            renderLatencySection(t0Events, t1Events, retSummaryEvents, synthEvents, verifyEvents, e2eEvents);
+
+            // 6. Render Output / Answer Version
+            renderOutputSection(synthEvents, verifyEvents, e2eEvents, replayMeta);
+
+            // Update Pipeline Overview Indicators
+            updatePipelineStepLatencies(t0Events, t1Events, retSummaryEvents, synthEvents, verifyEvents, e2eEvents);
+        }
+
+        /**
+         * 1. Render Timeline Stream
+         */
+        function renderTimelineStream(events) {
+            let html = `<div class="timeline-stream">`;
+
+            events.forEach((ev, idx) => {
+                const evType = ev.event || ev.event_type || "EVENT";
+                const timeStr = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : `#${idx + 1}`;
+                const tagClass = getEventTagClass(evType);
+
+                let summary = "";
+                if (evType === "T0_GATE") {
+                    const action = ev.decision_action || (ev.is_stable ? "PROCEED" : "WAIT");
+                    summary = `T0 Gate evaluated: <strong>${action}</strong> (Stability: ${ev.delta_similarity !== undefined ? ev.delta_similarity.toFixed(2) : (ev.is_stable ? '1.0' : '0.0')})`;
+                } else if (evType === "T1_DECISION") {
+                    const subqs = ev.sub_queries ? ev.sub_queries.join(" | ") : "";
+                    summary = `T1 Decision: <strong>${ev.decision_action || (ev.should_retrieve ? 'RETRIEVE' : 'NO_RETRIEVAL')}</strong> ${subqs ? `[${subqs}]` : ''}`;
+                } else if (evType === "RETRIEVAL" || evType.startsWith("RETRIEVAL_")) {
+                    summary = ev.chunk_id ? `Retrieved chunk: <strong>${ev.chunk_id}</strong> (Score: ${(ev.score || 0).toFixed(4)}, Rank: ${ev.rank || 1})` : `Multi-intent retrieval: ${ev.evidence_count || 0} chunks fetched across ${ev.number_of_subqueries || 1} sub-queries`;
+                } else if (evType === "SYNTHESIS") {
+                    summary = `Structured claims synthesized: ${ev.claims_generated || 0} claims (Version: v${ev.answer_version || 1})`;
+                } else if (evType === "CLAIM_VERIFY") {
+                    summary = `Claim #${ev.claim_id || 1} verified as <strong style="color: ${ev.claim_verification_result === 'SUPPORTED' ? 'var(--accent-green)' : ev.claim_verification_result === 'UNSUPPORTED' ? 'var(--accent-red)' : 'var(--accent-amber)'}">${ev.claim_verification_result || 'CHECKED'}</strong>`;
+                } else if (evType === "E2E") {
+                    summary = `Turn complete | Total Latency: <strong>${(ev.total_latency_ms || ev.latency_ms || 0).toFixed(2)} ms</strong> (v${ev.answer_version || 1})`;
+                } else {
+                    summary = JSON.stringify(ev);
+                }
+
+                html += `
+                    <div class="timeline-node active">
+                        <div class="timeline-icon-dot">${idx + 1}</div>
+                        <div class="timeline-content">
+                            <div class="timeline-meta">
+                                <span class="event-tag ${tagClass}">${evType}</span>
+                                <span>${timeStr} ${ev.latency_ms ? `· ${ev.latency_ms.toFixed(2)}ms` : ''}</span>
+                            </div>
+                            <div class="timeline-text">${summary}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            timelineStreamContainer.innerHTML = html;
+        }
+
+        function getEventTagClass(evType) {
+            if (evType.includes("T0")) return "tag-t0";
+            if (evType.includes("T1")) return "tag-t1";
+            if (evType.includes("RETRIEVAL")) return "tag-retrieval";
+            if (evType.includes("SYNTHESIS")) return "tag-synthesis";
+            if (evType.includes("VERIFY") || evType.includes("CLAIM")) return "tag-verify";
+            if (evType.includes("E2E")) return "tag-e2e";
+            return "tag-t1";
+        }
+
+        /**
+         * 2. Render Controller (T0 & T1)
+         */
+        function renderControllerSection(t0Events, t1Events) {
+            const latestT0 = t0Events.length ? t0Events[t0Events.length - 1] : null;
+            const latestT1 = t1Events.length ? t1Events[t1Events.length - 1] : null;
+
+            if (!latestT0 && !latestT1) {
+                controllerDetailsContainer.innerHTML = `<div class="empty-state">No controller events recorded.</div>`;
+                return;
+            }
+
+            let html = "";
+
+            // T0 Gate Card
+            if (latestT0) {
+                const isWait = latestT0.decision_action === "WAIT" || latestT0.is_stable === false;
+                html += `
+                    <div class="chunk-card" style="border-left: 4px solid ${isWait ? 'var(--accent-amber)' : 'var(--accent-green)'}">
+                        <div class="chunk-header-line">
+                            <span style="font-weight: 700; color: var(--text-main);">T0 INTENT STABILITY GATE</span>
+                            <span class="status-badge ${isWait ? 'status-partially_supported' : 'status-supported'}">${isWait ? 'WAIT (INCOMPLETE)' : 'PROCEED (STABLE)'}</span>
+                        </div>
+                        <div class="timeline-meta">
+                            <span>Delta Similarity: <strong>${latestT0.delta_similarity !== undefined ? latestT0.delta_similarity.toFixed(2) : (latestT0.is_stable ? '1.00' : '0.00')}</strong></span>
+                            <span>Latency: <strong>${(latestT0.latency_ms || 0).toFixed(2)} ms</strong></span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // T1 Decision Card
+            if (latestT1) {
+                const subqueries = latestT1.sub_queries || [];
+                html += `
+                    <div class="chunk-card" style="border-left: 4px solid var(--accent-blue)">
+                        <div class="chunk-header-line">
+                            <span style="font-weight: 700; color: var(--text-main);">T1 MULTI-INTENT ROUTER</span>
+                            <span class="status-badge ${latestT1.should_retrieve ? 'status-supported' : 'badge-file'}">${latestT1.decision_action || (latestT1.should_retrieve ? 'RETRIEVE' : 'NO_RETRIEVAL')}</span>
+                        </div>
+                        <div class="timeline-meta">
+                            <span>Refinement: <strong>${latestT1.is_refine ? 'YES (Turn Refinement)' : 'NO (New Turn)'}</strong></span>
+                            <span>Latency: <strong>${(latestT1.latency_ms || 0).toFixed(2)} ms</strong></span>
+                        </div>
+                        ${latestT1.reasoning ? `<div style="font-size: 0.775rem; color: var(--text-muted); font-style: italic;">Rationale: "${latestT1.reasoning}"</div>` : ''}
+                        
+                        <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-top: 4px;">
+                            Decomposed Sub-Queries (${subqueries.length})
+                        </div>
+                        <div class="subquery-pills-list">
+                            ${subqueries.map((sq, i) => `
+                                <div class="subquery-pill">
+                                    <span class="subquery-id">INTENT ${i + 1}</span>
+                                    <span style="color: var(--text-main); font-weight: 500;">${sq}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            controllerDetailsContainer.innerHTML = html;
+        }
+
+        /**
+         * 3. Render Retrieval & Evidence
+         */
+        function renderRetrievalSection(retSummaryEvents, chunkEvents) {
+            evidenceCountBadge.textContent = `${chunkEvents.length} Chunks`;
+
+            if (chunkEvents.length === 0 && retSummaryEvents.length === 0) {
+                retrievalEvidenceContainer.innerHTML = `<div class="empty-state">No retrieval chunks fetched in this session (e.g. conversational bypass or no results).</div>`;
+                return;
+            }
+
+            let html = "";
+
+            if (retSummaryEvents.length > 0) {
+                const latestRet = retSummaryEvents[retSummaryEvents.length - 1];
+                html += `
+                    <div style="display: flex; gap: 8px; justify-content: space-between; background: var(--bg-card); padding: 8px 12px; border-radius: var(--radius-sm); font-size: 0.775rem; color: var(--text-muted);">
+                        <span>Sub-Queries: <strong style="color: var(--text-main);">${latestRet.number_of_subqueries || 1}</strong></span>
+                        <span>Evidence Count: <strong style="color: var(--accent-indigo);">${latestRet.evidence_count || chunkEvents.length}</strong></span>
+                        <span>Ret. Latency: <strong style="color: var(--accent-cyan);">${(latestRet.latency_ms || 0).toFixed(2)} ms</strong></span>
+                    </div>
+                `;
+            }
+
+            chunkEvents.forEach((chk, i) => {
+                const scoreStr = chk.score !== undefined ? chk.score.toFixed(4) : "N/A";
+                const rank = chk.rank || (i + 1);
+                const method = (chk.retrieval_method || "rrf").toUpperCase();
+
+                html += `
+                    <div class="chunk-card">
+                        <div class="chunk-header-line">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.7rem; font-weight: 700; color: var(--text-dim);">#${rank}</span>
+                                <span class="chunk-id-tag">${chk.chunk_id || `chunk_${i}`}</span>
+                                <span style="font-size: 0.675rem; color: var(--text-dim); background: var(--bg-input); padding: 1px 5px; border-radius: 3px;">${method}</span>
+                            </div>
+                            <span class="chunk-score">RRF: ${scoreStr}</span>
+                        </div>
+                        ${chk.doc_id || chk.section ? `
+                            <div class="chunk-doc-sec">
+                                📄 ${chk.doc_id || 'corpus'} ${chk.section ? `· <i>${chk.section}</i>` : ''}
+                            </div>
+                        ` : ''}
+                        ${chk.text ? `<div class="chunk-snippet">${chk.text}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            retrievalEvidenceContainer.innerHTML = html;
+        }
+
+        /**
+         * 4. Render Claim Verification
+         */
+        function renderVerificationSection(verifyEvents) {
+            claimsCountBadge.textContent = `${verifyEvents.length} Claims`;
+
+            if (verifyEvents.length === 0) {
+                claimVerificationContainer.innerHTML = `<div class="empty-state">No claim verification records found.</div>`;
+                return;
+            }
+
+            let html = "";
+            verifyEvents.forEach((clm, i) => {
+                const status = (clm.claim_verification_result || "SUPPORTED").toLowerCase();
+                const statusClass = status === "supported" ? "status-supported" : status === "unsupported" ? "status-unsupported" : "status-partially_supported";
+                const citations = clm.citations || [];
+
+                html += `
+                    <div class="claim-card ${status}">
+                        <div class="chunk-header-line">
+                            <span style="font-weight: 700; font-size: 0.775rem; color: var(--text-dim);">CLAIM #${clm.claim_id || (i + 1)}</span>
+                            <span class="claim-status-badge ${statusClass}">${status.replace("_", " ")}</span>
+                        </div>
+                        <div style="font-size: 0.85rem; color: var(--text-main); font-weight: 500; line-height: 1.45;">
+                            ${clm.claim_text || clm.text || "Claim content"}
+                        </div>
+                        ${citations.length > 0 ? `
+                            <div class="citations-list">
+                                ${citations.map(c => `<span class="citation-tag">${c}</span>`).join('')}
+                            </div>
+                        ` : '<div style="font-size: 0.725rem; color: var(--text-dim); font-style: italic;">No citations linked</div>'}
+                        <div class="timeline-meta" style="margin-top: 2px;">
+                            <span>Method: <strong>${clm.verification_method || 'cheap_local'}</strong></span>
+                            <span>Latency: <strong>${(clm.latency_ms || 0).toFixed(2)} ms</strong></span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            claimVerificationContainer.innerHTML = html;
+        }
+
+        /**
+         * 5. Render Latency Breakdown
+         */
+        function renderLatencySection(t0Events, t1Events, retSummaryEvents, synthEvents, verifyEvents, e2eEvents) {
+            const e2eEvent = e2eEvents.length ? e2eEvents[e2eEvents.length - 1] : null;
+            const totalE2E = e2eEvent ? (e2eEvent.total_latency_ms || e2eEvent.latency_ms || 0) : 0;
+            
+            headerE2ELatency.textContent = totalE2E ? `${totalE2E.toFixed(2)} ms` : "0.0 ms";
+            totalTurnLatencyBadge.textContent = totalE2E ? `Total: ${totalE2E.toFixed(2)} ms` : "-";
+
+            const t0Lat = t0Events.length ? (t0Events[t0Events.length - 1].latency_ms || 0) : 0;
+            const t1Lat = t1Events.length ? (t1Events[t1Events.length - 1].latency_ms || 0) : 0;
+            const retLat = retSummaryEvents.length ? (retSummaryEvents[retSummaryEvents.length - 1].latency_ms || 0) : 0;
+            const synthLat = synthEvents.length ? (synthEvents[synthEvents.length - 1].latency_ms || 0) : 0;
+            const verLat = verifyEvents.reduce((acc, c) => acc + (c.latency_ms || 0), 0);
+
+            const maxRef = Math.max(totalE2E, t0Lat + t1Lat + retLat + synthLat + verLat, 1);
+
+            const stages = [
+                { label: "T0 Intent Stability", val: t0Lat, color: "var(--accent-amber)" },
+                { label: "T1 Controller Router", val: t1Lat, color: "var(--accent-blue)" },
+                { label: "Hybrid Search (BM25+Dense+RRF)", val: retLat, color: "var(--accent-indigo)" },
+                { label: "Structured Synthesis", val: synthLat, color: "var(--accent-purple)" },
+                { label: "Claim Grounding Verifier", val: verLat, color: "var(--accent-green)" },
+                { label: "Total E2E Measured", val: totalE2E, color: "var(--accent-cyan)" }
+            ];
+
+            let html = `<div class="waterfall-chart">`;
+            stages.forEach(st => {
+                const pct = Math.min(100, Math.max(2, (st.val / maxRef) * 100));
+                html += `
+                    <div class="waterfall-row">
+                        <div class="waterfall-label-line">
+                            <span>${st.label}</span>
+                            <span style="font-family: var(--font-mono); font-weight: 700; color: ${st.color};">${st.val.toFixed(2)} ms</span>
+                        </div>
+                        <div class="waterfall-bar-track">
+                            <div class="waterfall-bar-fill" style="width: ${pct}%; background-color: ${st.color};"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+
+            latencyWaterfallContainer.innerHTML = html;
+        }
+
+        /**
+         * 6. Render Output & Answer Versioning
+         */
+        function renderOutputSection(synthEvents, verifyEvents, e2eEvents, replayMeta) {
+            const latestSynth = synthEvents.length ? synthEvents[synthEvents.length - 1] : null;
+            const latestE2E = e2eEvents.length ? e2eEvents[e2eEvents.length - 1] : null;
+
+            const version = latestSynth ? latestSynth.answer_version : (latestE2E ? latestE2E.answer_version : 1);
+            headerAnswerVersion.textContent = `v${version || 1}`;
+
+            let html = `
+                <div class="answer-box">
+                    <div class="chunk-header-line">
+                        <div class="answer-version-tag">📌 ANSWER VERSION ${version || 1}</div>
+                        ${latestSynth && latestSynth.is_refinement ? `<span class="status-badge badge-file">REFINEMENT UPDATE</span>` : ''}
+                    </div>
+            `;
+
+            // Collect supported claims to render markdown-like stream
+            const supportedClaims = verifyEvents.filter(v => (v.claim_verification_result === "SUPPORTED" || v.claim_verification_result === "PARTIALLY_SUPPORTED"));
+
+            if (supportedClaims.length > 0) {
+                html += `<div class="answer-content-text">`;
+                supportedClaims.forEach(c => {
+                    const citesStr = (c.citations || []).map(cit => `<span class="citation-tag">${cit}</span>`).join(" ");
+                    html += `• ${c.claim_text || c.text || ""} ${citesStr}<br><br>`;
+                });
+                html += `</div>`;
+            } else if (verifyEvents.some(v => v.claim_verification_result === "UNSUPPORTED")) {
+                html += `
+                    <div class="uncertainty-alert">
+                        <strong>⚠️ Grounding Uncertainty:</strong> The requested subject was outside the verified corporate policy knowledge base. No unsupported or hallucinated assertions were streamed to the client.
+                    </div>
+                `;
+            } else {
+                html += `<div class="empty-state">No verified claims streamed for this turn.</div>`;
+            }
+
+            html += `</div>`;
+            streamOutputContainer.innerHTML = html;
+        }
+
+        /**
+         * Pipeline Step Latency Indicator Updates
+         */
+        function updatePipelineStepLatencies(t0Events, t1Events, retSummaryEvents, synthEvents, verifyEvents, e2eEvents) {
+            if (t0Events.length) {
+                const t0 = t0Events[t0Events.length - 1];
+                latT0.textContent = `${(t0.latency_ms || 0).toFixed(2)} ms`;
+                document.getElementById("stageStepT0").className = `stage-step ${t0.decision_action === 'WAIT' ? 'warning' : 'success'}`;
+            }
+            if (t1Events.length) {
+                const t1 = t1Events[t1Events.length - 1];
+                latT1.textContent = `${(t1.latency_ms || 0).toFixed(2)} ms`;
+                document.getElementById("stageStepT1").className = "stage-step success";
+            }
+            if (retSummaryEvents.length) {
+                const ret = retSummaryEvents[retSummaryEvents.length - 1];
+                latRetrieval.textContent = `${(ret.latency_ms || 0).toFixed(2)} ms`;
+                latRRF.textContent = "Active";
+                document.getElementById("stageStepRetrieval").className = "stage-step success";
+                document.getElementById("stageStepRRF").className = "stage-step success";
+            }
+            if (synthEvents.length) {
+                const synth = synthEvents[synthEvents.length - 1];
+                latSynthesis.textContent = `${(synth.latency_ms || 0).toFixed(2)} ms`;
+                document.getElementById("stageStepSynthesis").className = "stage-step success";
+            }
+            if (verifyEvents.length) {
+                const avgVer = verifyEvents.reduce((a, b) => a + (b.latency_ms || 0), 0) / verifyEvents.length;
+                latVerify.textContent = `${avgVer.toFixed(2)} ms/clm`;
+                document.getElementById("stageStepVerify").className = "stage-step success";
+            }
+            if (e2eEvents.length) {
+                const e2e = e2eEvents[e2eEvents.length - 1];
+                latAnswer.textContent = `${(e2e.total_latency_ms || e2e.latency_ms || 0).toFixed(2)} ms`;
+                document.getElementById("stageStepAnswer").className = "stage-step success";
+            }
+        }
+
+        // Initialize with default session if input is populated
+        window.addEventListener("DOMContentLoaded", () => {
+            fetchDemoScenario("eval_multi_intent");
+        });
     </script>
 </body>
 </html>

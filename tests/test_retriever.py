@@ -21,6 +21,10 @@ async def run_retrieval_tests():
     retriever = HybridRetriever(app_settings=settings)
     retriever.load_indexes()
 
+    assert retriever.chunk_metadata is not None
+    assert retriever.bm25_index is not None
+    assert retriever.embeddings is not None
+
     print(f"Loaded {len(retriever.chunk_metadata)} chunks into memory.")
     print(f"BM25 corpus size: {retriever.bm25_index.corpus_size}")
     print(f"Dense embeddings shape: {retriever.embeddings.shape}")
@@ -91,6 +95,10 @@ async def run_retrieval_tests():
 async def test_retriever_pipeline():
     retriever = HybridRetriever(app_settings=settings)
     retriever.load_indexes()
+
+    assert retriever.chunk_metadata is not None
+    assert retriever.bm25_index is not None
+    assert retriever.embeddings is not None
 
     assert len(retriever.chunk_metadata) == 40
     assert retriever.bm25_index.corpus_size == 40

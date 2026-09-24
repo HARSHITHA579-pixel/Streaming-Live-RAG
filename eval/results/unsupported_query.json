@@ -1,0 +1,209 @@
+{
+  "scenario": "unsupported_query",
+  "session_id": "eval_unsupported_query_1790269714370",
+  "passed": true,
+  "checks": {
+    "uncertainty_surfaced": true,
+    "no_fabricated_claims": true
+  },
+  "total_duration_ms": 5.395861000579316,
+  "latency_ms": 5.184759000258055,
+  "retrieval_calls": 1,
+  "retrieved_chunks": 0,
+  "answer_version": 1,
+  "citations_present": false,
+  "uncertainty_present": true,
+  "events_observed": [
+    "transcript",
+    "controller",
+    "retrieval",
+    "claim",
+    "verification",
+    "answer"
+  ],
+  "failure_reasons": [],
+  "telemetry_log_path": "logs/session_eval_unsupported_query_1790269714370.jsonl",
+  "telemetry_events": [
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "T1_DECISION",
+      "timestamp": "2026-09-24T17:08:34.370957+00:00",
+      "latency_ms": 0.03971900150645524,
+      "answer_version": 0,
+      "decision_action": "RETRIEVE",
+      "should_retrieve": true,
+      "retrieval_decision": true,
+      "is_refine": false,
+      "sub_queries": [
+        "What is the cryptocurrency reimbursement",
+        "pet travel policy?"
+      ],
+      "event_type": "T1_DECISION"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "T0_GATE",
+      "timestamp": "2026-09-24T17:08:34.371291+00:00",
+      "latency_ms": 0.6545860014739446,
+      "answer_version": 0,
+      "decision_action": "PROCEED",
+      "is_stable": true,
+      "delta_similarity": 1.0,
+      "event_type": "T0_GATE"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "T1_DECISION",
+      "timestamp": "2026-09-24T17:08:34.371498+00:00",
+      "latency_ms": 0.6545860014739446,
+      "answer_version": 0,
+      "decision_action": "RETRIEVE",
+      "should_retrieve": true,
+      "retrieval_decision": true,
+      "is_refine": false,
+      "sub_queries": [
+        "What is the cryptocurrency reimbursement",
+        "pet travel policy?"
+      ],
+      "reasoning": "Corpus query identified. Decomposed into 2 sub-queries.",
+      "event_type": "T1_DECISION"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.372472+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "reimbursement_01",
+      "retrieval_method": "rrf",
+      "rank": 1,
+      "score": 0.03252247488101534,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.372685+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "hotel_policy_02",
+      "retrieval_method": "rrf",
+      "rank": 2,
+      "score": 0.032266458495966696,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.372887+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "reimbursement_05",
+      "retrieval_method": "rrf",
+      "rank": 3,
+      "score": 0.031754032258064516,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.373084+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "catering_policy_03",
+      "retrieval_method": "rrf",
+      "rank": 4,
+      "score": 0.031009615384615385,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.373863+00:00",
+      "sub_query_id": 1,
+      "chunk_id": "travel_policy_01",
+      "retrieval_method": "rrf",
+      "rank": 1,
+      "score": 0.032018442622950824,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.374090+00:00",
+      "sub_query_id": 1,
+      "chunk_id": "booking_policy_03",
+      "retrieval_method": "rrf",
+      "rank": 2,
+      "score": 0.0315136476426799,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.374301+00:00",
+      "sub_query_id": 1,
+      "chunk_id": "reimbursement_03",
+      "retrieval_method": "rrf",
+      "rank": 3,
+      "score": 0.03131881575727918,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.374495+00:00",
+      "sub_query_id": 1,
+      "chunk_id": "booking_policy_01",
+      "retrieval_method": "rrf",
+      "rank": 4,
+      "score": 0.031054405392392875,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "RETRIEVAL",
+      "timestamp": "2026-09-24T17:08:34.375105+00:00",
+      "latency_ms": 2.9941240027255844,
+      "answer_version": 1,
+      "number_of_subqueries": 2,
+      "evidence_count": 0,
+      "retrieval_call_count": 2,
+      "event_type": "RETRIEVAL"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "SYNTHESIS",
+      "timestamp": "2026-09-24T17:08:34.375332+00:00",
+      "latency_ms": 0.014907000149833038,
+      "answer_version": 1,
+      "claims_generated": 1,
+      "citations_generated": 0,
+      "is_refinement": false,
+      "usage_available": false,
+      "event_type": "SYNTHESIS"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.375540+00:00",
+      "latency_ms": 0.0038950020098127425,
+      "claim_id": 1,
+      "claim_text": "The corporate policy knowledge base does not contain verified rules regarding: 'What is the cryptocurrency reimbursement and pet travel policy?'.",
+      "claim_verification_result": "UNSUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 0,
+      "citations": [],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_unsupported_query_1790269714370",
+      "event": "E2E",
+      "timestamp": "2026-09-24T17:08:34.375809+00:00",
+      "latency_ms": 5.184759000258055,
+      "answer_version": 1,
+      "total_latency_ms": 5.184759000258055,
+      "controller_latency_ms": 0.6545860014739446,
+      "retrieval_latency_ms": 2.9941240027255844,
+      "synthesis_latency_ms": 0.014907000149833038,
+      "verification_latency_ms": 0.25596599880373105,
+      "event_type": "E2E"
+    }
+  ]
+}

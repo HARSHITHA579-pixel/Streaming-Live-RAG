@@ -1,0 +1,285 @@
+{
+  "scenario": "partial_streaming",
+  "session_id": "eval_partial_streaming_1790269712977",
+  "passed": true,
+  "checks": {
+    "partial_t0_unstable": true,
+    "partial_no_retrieval": true,
+    "partial_no_answer": true,
+    "completion_t0_stable": true,
+    "completion_retrieval": true,
+    "completion_answer": true
+  },
+  "total_duration_ms": 1348.2877389978967,
+  "latency_ms": 1345.5650530013372,
+  "retrieval_calls": 1,
+  "retrieved_chunks": 4,
+  "answer_version": 1,
+  "citations_present": true,
+  "uncertainty_present": false,
+  "events_observed": [
+    "transcript",
+    "controller",
+    "retrieval",
+    "claim",
+    "verification",
+    "answer"
+  ],
+  "failure_reasons": [],
+  "telemetry_log_path": "logs/session_eval_partial_streaming_1790269712977.jsonl",
+  "telemetry_events": [
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "T0_GATE",
+      "timestamp": "2026-09-24T17:08:32.979256+00:00",
+      "latency_ms": 2.102551999996649,
+      "answer_version": 0,
+      "decision_action": "WAIT",
+      "is_stable": false,
+      "delta_similarity": 0.0,
+      "event_type": "T0_GATE"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "T1_DECISION",
+      "timestamp": "2026-09-24T17:08:34.318064+00:00",
+      "latency_ms": 0.5461869986902457,
+      "answer_version": 0,
+      "decision_action": "RETRIEVE",
+      "should_retrieve": true,
+      "retrieval_decision": true,
+      "is_refine": false,
+      "sub_queries": [
+        "What is the corporate hotel nightly reimbursement rate limit?"
+      ],
+      "event_type": "T1_DECISION"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "T0_GATE",
+      "timestamp": "2026-09-24T17:08:34.318397+00:00",
+      "latency_ms": 1338.7872210005298,
+      "answer_version": 0,
+      "decision_action": "PROCEED",
+      "is_stable": true,
+      "delta_similarity": 1.0,
+      "event_type": "T0_GATE"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "T1_DECISION",
+      "timestamp": "2026-09-24T17:08:34.318620+00:00",
+      "latency_ms": 1338.7872210005298,
+      "answer_version": 0,
+      "decision_action": "RETRIEVE",
+      "should_retrieve": true,
+      "retrieval_decision": true,
+      "is_refine": false,
+      "sub_queries": [
+        "What is the corporate hotel nightly reimbursement rate limit?"
+      ],
+      "reasoning": "Corpus query identified. Decomposed into 1 sub-queries.",
+      "event_type": "T1_DECISION"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.319783+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "hotel_policy_02",
+      "retrieval_method": "rrf",
+      "rank": 1,
+      "score": 0.03278688524590164,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.320026+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "hotel_policy_01",
+      "retrieval_method": "rrf",
+      "rank": 2,
+      "score": 0.0315136476426799,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.320256+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "reimbursement_05",
+      "retrieval_method": "rrf",
+      "rank": 3,
+      "score": 0.03055037313432836,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "RETRIEVAL_CHUNK",
+      "timestamp": "2026-09-24T17:08:34.320526+00:00",
+      "sub_query_id": 0,
+      "chunk_id": "catering_policy_03",
+      "retrieval_method": "rrf",
+      "rank": 4,
+      "score": 0.03036576949620428,
+      "event_type": "RETRIEVAL_CHUNK"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "RETRIEVAL",
+      "timestamp": "2026-09-24T17:08:34.321170+00:00",
+      "latency_ms": 1.9055160009884275,
+      "answer_version": 1,
+      "number_of_subqueries": 1,
+      "evidence_count": 4,
+      "retrieval_call_count": 1,
+      "event_type": "RETRIEVAL"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "SYNTHESIS",
+      "timestamp": "2026-09-24T17:08:34.321995+00:00",
+      "latency_ms": 0.587390000873711,
+      "answer_version": 1,
+      "claims_generated": 8,
+      "citations_generated": 8,
+      "is_refinement": false,
+      "usage_available": false,
+      "event_type": "SYNTHESIS"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.322535+00:00",
+      "latency_ms": 0.30610400062869303,
+      "claim_id": 1,
+      "claim_text": "Reimbursement for hotel accommodations is subject to nightly room rate caps determined by geographic destination tiers.",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: hotel_policy | Section: Nightly Room Rate Caps and Tiered Ceilings | Chunk: hotel_policy_02]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.322885+00:00",
+      "latency_ms": 0.11029899906134233,
+      "claim_id": 2,
+      "claim_text": "Nightly caps apply to the base room rate excluding mandatory local occupancy taxes and tourism fees:\n- **Standard Domestic Locations:** The maximum allowable base rate is $220 per night.",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: hotel_policy | Section: Nightly Room Rate Caps and Tiered Ceilings | Chunk: hotel_policy_02]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.323259+00:00",
+      "latency_ms": 0.1024310004140716,
+      "claim_id": 3,
+      "claim_text": "The Corporate Lodging and Hotel Policy establishes standards for lodging quality, safety, cost limits, and booking channels for business trips:\n- **Mandatory Booking Channel:** All individual and small-group hotel reservations must be booked directly through the Enterprise Travel Portal or the authorized corporate travel management agency.",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: hotel_policy | Section: Preferred Lodging and Booking Channels | Chunk: hotel_policy_01]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.323598+00:00",
+      "latency_ms": 0.1006499987852294,
+      "claim_id": 4,
+      "claim_text": "Direct Bookings: Hotel accommodations booked directly on third-party consumer booking websites (e.g., Expedia, Booking.com, Airbnb) are non-compliant and will not be reimbursed unless an official exception waiver is granted in writing by the Corporate Travel Desk prior to the stay.",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: hotel_policy | Section: Preferred Lodging and Booking Channels | Chunk: hotel_policy_01]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.323927+00:00",
+      "latency_ms": 0.09863299783319235,
+      "claim_id": 5,
+      "claim_text": "Corporate Accounts Payable processes approved reimbursement batches according to the standard payroll and payment cycle:\n- **Disbursement Schedule:** Once an expense report receives all required managerial approvals, payment is issued via direct deposit within 10 business days (or on the next regular bi-weekly payroll cycle).",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: reimbursement | Section: Payment Timelines and Disputed Claims | Chunk: reimbursement_05]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.324247+00:00",
+      "latency_ms": 0.08419699952355586,
+      "claim_id": 6,
+      "claim_text": "Disputed Line Items: If an auditor or approver rejects a specific line item on an expense report, the disputed line is separated into an inquiry queue.",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: reimbursement | Section: Payment Timelines and Disputed Claims | Chunk: reimbursement_05]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.324565+00:00",
+      "latency_ms": 0.09109400343731977,
+      "claim_id": 7,
+      "claim_text": "To ensure food hygiene, quality, and streamlined payment processing:\n- **Corporate Preferred Vendor List:** Catering orders exceeding $500 must be placed with approved corporate caterers listed in the Enterprise Procurement Portal.",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: catering_policy | Section: Approved Caterers and Vendor Contracting | Chunk: catering_policy_03]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "CLAIM_VERIFY",
+      "timestamp": "2026-09-24T17:08:34.324873+00:00",
+      "latency_ms": 0.07873400318203494,
+      "claim_id": 8,
+      "claim_text": "Preferred caterers offer direct corporate master billing, eliminating the need for out-of-pocket employee expense reimbursement.",
+      "claim_verification_result": "SUPPORTED",
+      "verification_method": "cheap_local",
+      "citation_count": 1,
+      "citations": [
+        "[DOC: catering_policy | Section: Approved Caterers and Vendor Contracting | Chunk: catering_policy_03]"
+      ],
+      "event_type": "CLAIM_VERIFY"
+    },
+    {
+      "session_id": "eval_partial_streaming_1790269712977",
+      "event": "E2E",
+      "timestamp": "2026-09-24T17:08:34.325163+00:00",
+      "latency_ms": 1345.5650530013372,
+      "answer_version": 1,
+      "total_latency_ms": 1345.5650530013372,
+      "controller_latency_ms": 1338.7872210005298,
+      "retrieval_latency_ms": 1.9055160009884275,
+      "synthesis_latency_ms": 0.587390000873711,
+      "verification_latency_ms": 2.8462650006986223,
+      "event_type": "E2E"
+    }
+  ]
+}

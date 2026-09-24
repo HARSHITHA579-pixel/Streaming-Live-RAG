@@ -1,0 +1,12 @@
+{
+  "scenario": "single_intent",
+  "description": "Tests single-intent detection, retrieval, and grounded claim answer generation.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "What are the rules for travel expense reimbursement submission?",
+      "is_final": true,
+      "expected_intents": ["travel expense reimbursement submission"]
+    }
+  ]
+}

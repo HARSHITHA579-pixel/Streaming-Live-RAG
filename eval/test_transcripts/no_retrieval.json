@@ -1,0 +1,12 @@
+{
+  "scenario": "no_retrieval",
+  "description": "Tests conversational non-corpus turn bypassing retrieval and responding without unnecessary searches.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "Hello! Thank you, that answers my question.",
+      "is_final": true,
+      "expected_intents": []
+    }
+  ]
+}

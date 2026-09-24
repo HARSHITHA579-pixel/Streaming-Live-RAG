@@ -1,0 +1,15 @@
+{
+  "scenario": "multi_intent",
+  "description": "Tests multi-intent decomposition into sub-queries, independent RRF retrieval, evidence deduplication, and minimum evidence guarantee.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "What are the hotel nightly rate limits and what is the cancellation policy for events?",
+      "is_final": true,
+      "expected_intents": [
+        "hotel nightly rate limits",
+        "cancellation policy for events"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "scenario": "unsupported_query",
+  "description": "Tests query outside the corpus scope to verify uncertainty is surfaced without fabricated grounded claims.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "What is the cryptocurrency reimbursement and pet travel policy?",
+      "is_final": true,
+      "expected_intents": ["cryptocurrency reimbursement and pet travel policy"]
+    }
+  ]
+}

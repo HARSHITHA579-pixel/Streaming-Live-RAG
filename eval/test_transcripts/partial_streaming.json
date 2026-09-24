@@ -1,0 +1,18 @@
+{
+  "scenario": "partial_streaming",
+  "description": "Tests T0 stability gate withholding premature retrieval on incomplete transcript, followed by stable completion.",
+  "chunks": [
+    {
+      "timestamp_offset_ms": 0,
+      "text_chunk": "What is the...",
+      "is_final": false,
+      "expected_intents": []
+    },
+    {
+      "timestamp_offset_ms": 150,
+      "text_chunk": "What is the corporate hotel nightly reimbursement rate limit?",
+      "is_final": true,
+      "expected_intents": ["hotel nightly reimbursement rate limit"]
+    }
+  ]
+}
