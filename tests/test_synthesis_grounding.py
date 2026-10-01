@@ -1,3 +1,11 @@
+"""
+Validates Structured Claim Synthesis and Multi-Tier Grounding Verification in Streaming Live RAG.
+Ensures responses are synthesized as atomic structured claims with section citations,
+verified against retrieved evidence via fast local checks and batched LLM verification,
+and ungrounded claims are filtered out or redirected to uncertainty notes.
+Demonstrates: Atomic claim streaming, factual grounding verification, and hallucination prevention.
+"""
+
 import os
 import sys
 import asyncio

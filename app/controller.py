@@ -58,6 +58,12 @@ class ControllerDecision:
     sub_queries: List[str] = field(default_factory=list)
     reasoning: Optional[str] = None
     t0_stable: bool = True
+    refinement_type: str = "none"  # "supersession", "continuation", "removal", "additive", "none"
+    intent_type: str = "REQUIREMENTS"  # INFORMATION_LOOKUP, REQUIREMENTS, COMPARISON, RECOMMENDATION, LOCATION_VENUE_REQUEST, BOOKING_ACTION, REFINEMENT, CONVERSATIONAL, UNSUPPORTED
+    is_supersession: bool = False
+    is_removal: bool = False
+    is_continuation: bool = False
+    superseded_terms: List[str] = field(default_factory=list)
 
     @property
     def retrieve(self) -> bool:
@@ -121,7 +127,8 @@ class TwoTierController:
         from sklearn.preprocessing import normalize
         vec_sparse = self._get_vectorizer().transform([text])
         vec_dense = vec_sparse.toarray().astype(np.float32)
-        return normalize(vec_dense, norm="l2", axis=1).astype(np.float32)[0]
+        norm_dense = cast(Any, normalize(vec_dense, norm="l2", axis=1))
+        return np.asarray(norm_dense, dtype=np.float32)[0]
 
     async def evaluate_t0_stability(
         self,
@@ -141,47 +148,31 @@ class TwoTierController:
 
         words = curr_text.split()
         token_count = len(words)
+        has_terminal_punct = curr_text.endswith((".", "?", "!"))
 
-        # 1. Short conversational phrases (e.g. "hi", "thanks", "okay sounds good") are inherently complete
+        # 1. Short conversational phrases (e.g. "hi", "thanks", "okay", "yes", "hmm") are inherently complete
         short_complete_patterns = [
-            r"^(?:(?:hi|hello|hey|greetings|good morning|good afternoon|good evening|bye|goodbye|thanks|thank you|ok|okay|sounds good|cool|great|perfect|got it|makes sense|understood|all good|all set)\s*[,.!?]?\s*)+$",
+            r"^(?:(?:hi|hello|hey|greetings|good morning|good afternoon|good evening|bye|goodbye|thanks|thank you|ok|okay|sounds good|cool|great|perfect|got it|makes sense|understood|all good|all set|hmm|yes|yeah|sure|no|yep)\s*(?:nexa)?\s*[,.!?]?\s*)+$",
             r"^.*\b(that answers my question|that's all|no more questions|all set|have a great day)\b[.!?]*$"
         ]
         if any(re.match(p, curr_text, re.IGNORECASE) for p in short_complete_patterns):
-            elapsed_ms = (time.perf_counter() - start_time) * 1000
-            if self.telemetry:
-                try:
-                    self.telemetry.log_t0_gate("stream", 1.0, True, elapsed_ms)
-                except Exception:
-                    pass
             return True, 1.0
 
-        # 2. Check minimum token count or terminal punctuation completion
-        min_tokens = getattr(self.settings, "t0_min_chunk_tokens", 5)
-        has_terminal_punct = curr_text.endswith((".", "?", "!"))
-        if token_count < min_tokens and not has_terminal_punct:
-            elapsed_ms = (time.perf_counter() - start_time) * 1000
-            if self.telemetry:
-                try:
-                    self.telemetry.log_t0_gate("stream", 0.0, False, elapsed_ms)
-                except Exception:
-                    pass
-            return False, 0.0
-
-        # 3. Check for dangling grammatical particles / trailing unfinished connectors
+        # 2. Check for dangling grammatical particles / trailing unfinished connectors
         dangling_connectors = {
             "the", "a", "an", "and", "or", "to", "for", "with", "is", "are",
             "about", "what", "how", "if", "when", "can", "could", "should",
-            "my", "our", "in", "at", "of", "that", "this", "because"
+            "my", "our", "in", "at", "of", "that", "this", "because", "as", "also", "actually"
         }
         last_word = re.sub(r"[^\w]", "", words[-1].lower())
         if curr_text.endswith("...") or (last_word in dangling_connectors and not has_terminal_punct):
-            elapsed_ms = (time.perf_counter() - start_time) * 1000
-            if self.telemetry:
-                try:
-                    self.telemetry.log_t0_gate("stream", 0.0, False, elapsed_ms)
-                except Exception:
-                    pass
+            return False, 0.0
+
+        # 3. Check minimum token count or terminal punctuation completion
+        min_tokens = getattr(self.settings, "t0_min_chunk_tokens", 5)
+        is_continuation_or_refine = bool(re.search(r"^(?:for|actually|instead|rather|forget|only|keep|drop|remove|with|in)\b", curr_text, re.IGNORECASE))
+
+        if token_count < 2 and not has_terminal_punct:
             return False, 0.0
 
         # 4. Compute embedding similarity between previous buffer and current buffer
@@ -192,14 +183,7 @@ class TwoTierController:
         else:
             similarity = 1.0
 
-        is_stable = has_terminal_punct or (token_count >= min_tokens)
-
-        elapsed_ms = (time.perf_counter() - start_time) * 1000
-        if self.telemetry:
-            try:
-                self.telemetry.log_t0_gate("stream", similarity, is_stable, elapsed_ms)
-            except Exception:
-                pass
+        is_stable = has_terminal_punct or (token_count >= min_tokens) or is_continuation_or_refine or (token_count >= 2 and last_word not in dangling_connectors)
 
         return is_stable, similarity
 
@@ -216,64 +200,215 @@ class TwoTierController:
 
         # 1. Pure conversational or formatting checks (no retrieval needed)
         conversational_patterns = [
-            r"^(?:(?:hi|hello|hey|greetings|good morning|good afternoon|good evening|bye|goodbye|thanks|thank you|ok|okay|sounds good|cool|great|perfect|got it|makes sense|understood|all good|all set)\s*[,.!?]?\s*)+$",
+            r"^(?:(?:hi|hello|hey|greetings|good morning|good afternoon|good evening|bye|goodbye|thanks|thank you|ok|okay|sounds good|cool|great|perfect|got it|makes sense|understood|all good|all set|hmm|yes|yeah|sure|no|yep)\s*(?:nexa)?\s*[,.!?]?\s*)+$",
             r"^.*\b(that answers my question|that's all|no more questions|all set|have a great day)\b[.!?]*$"
         ]
-        formatting_pattern = r"\b(summarize in bullets|format as table|make it shorter|simplify|translate to|reformat)\b"
+        formatting_pattern = r"\b(summarize in bullets|format as table|format this|make it shorter|simplify|translate to|reformat|repeat (?:your )?(?:last )?answer|in bullet points|bullet points|as bullets)\b"
 
         if any(re.match(pat, clean_text, re.IGNORECASE) for pat in conversational_patterns):
             return ControllerDecision(
                 should_retrieve=False,
                 is_refine=False,
+                intent_type="CONVERSATIONAL",
                 sub_queries=[],
                 reasoning="Conversational greeting, acknowledgement, or gratitude. No corpus retrieval required."
             )
 
-        if re.search(formatting_pattern, clean_text, re.IGNORECASE) and session_state.previous_answer:
+        if re.search(formatting_pattern, clean_text, re.IGNORECASE):
             return ControllerDecision(
                 should_retrieve=False,
                 is_refine=False,
+                intent_type="FORMATTING",
                 sub_queries=[],
-                reasoning="Formatting request on existing session state. No corpus retrieval required."
+                reasoning="Formatting request. No corpus retrieval required."
             )
 
-        # 2. Refinement detection
-        has_prior_context = bool(session_state.previous_answer or session_state.covered_intents or session_state.claims)
-        refine_signals = [
-            r"^(actually|instead|rather|what about|how about|also|and for|specifically for|now for|update|what if|in that case)\b",
-            r"\b(instead|actually|what about|for international|for a group|for \d+ people)\b"
-        ]
-        is_refinement = has_prior_context and any(re.search(pat, clean_text, re.IGNORECASE) for pat in refine_signals)
+        # Detect commercial venue, booking, vendor, phone number, and out-of-corpus directory requests
+        is_policy_inquiry = bool(re.search(r"\b(reimbursement|per diem|rate limit|policy|policies|rules for|guidelines for|regulations)\b", clean_text, re.IGNORECASE))
 
-        # 3. Multi-intent decomposition
-        # Split on conjunctions / clauses that indicate multiple distinct queries
-        split_pattern = r"\s+(?:and also|and what about|and what is|and what are|and how about|as well as|and)\s+"
+        venue_patterns = [
+            r"\b(dining hall|banquet hall|wedding venue|party hall|buffet)\b",
+            r"\b(find (?:me )?(?:a )?(?:hotel|restaurant|venue|dining hall|banquet|hall|place))\b",
+            r"\b(need (?:a )?(?:dining hall|banquet hall|hotel|restaurant|wedding venue|venue|place to eat))\b",
+            r"\b(recommend (?:a )?(?:restaurant|hotel|venue|dining hall|place to eat|buffet))\b",
+            r"\b(best restaurant|best hotel|best buffet|cheapest hotel|cheapest venue|top restaurant)\b",
+            r"\b(which (?:hotel|restaurant|venue|cafe|buffet))\b",
+            r"\b(hotel in [A-Za-z]+|restaurant in [A-Za-z]+|venue in [A-Za-z]+|restaurant near [A-Za-z]+|hotel near [A-Za-z]+|venue near [A-Za-z]+)\b",
+            r"\b(where can i (?:rent|find|book|hire) (?:a |me )?(?:hall|venue|hotel|restaurant|room|chairs?|tents?))\b",
+            r"\b(hall for \d+|venue for \d+|hotel for \d+|dining hall for \d+|room for rent|rent a hall|rent a venue)\b"
+        ]
+        is_venue_request = not is_policy_inquiry and any(re.search(pat, clean_text, re.IGNORECASE) for pat in venue_patterns)
+
+        booking_action_patterns = [
+            r"\b(book (?:a |me )?(?:banquet|hall|hotel|table|flight|ticket|venue|seats?|room))\b",
+            r"\b(reserve (?:a |me )?(?:table|seats?|hotel|room|hall|venue))\b",
+            r"\b(order \d+ (?:box|lunches|meals|pizzas?))\b",
+            r"\b(rent chairs|hire event|hire vendor|flight tickets?|book taxi|rental vendor)\b"
+        ]
+        is_booking_action = not is_policy_inquiry and any(re.search(pat, clean_text, re.IGNORECASE) for pat in booking_action_patterns)
+
+        unsupported_directory_patterns = [
+            r"\b(phone number|contact number|mobile number|email address|price to rent|how much does it cost|weather forecast|weather tomorrow|weather for|3-course dinner|dinner menu|menu for|vendor near me|rental vendor|sound system)\b",
+            r"\b(give me the (?:phone|contact) number)\b",
+            r"\b(what is the (?:price|cost|weather|phone|menu))\b"
+        ]
+        is_unsupported_directory = any(re.search(pat, clean_text, re.IGNORECASE) for pat in unsupported_directory_patterns)
+
+        has_prior_context = bool(session_state.previous_answer or session_state.active_intents or session_state.covered_intents or session_state.claims)
+
+        # 2. Same-Turn Refinement / Correction Detection (e.g., "Pune travel, actually international travel")
+        same_turn_split = re.split(r",?\s+(?:actually|no\s+wait|rather|scratch\s+that|i\s+meant|actually\s+i\s+mean)\s+", clean_text, flags=re.IGNORECASE)
+        if len(same_turn_split) >= 2:
+            superseded_part = same_turn_split[0].strip()
+            active_part = same_turn_split[-1].strip()
+            # Clean sub-queries for the refined active part
+            sub_q = re.sub(r"^(also|and|can you tell me|what is|what are|i mean|i meant)\s+", "", active_part, flags=re.IGNORECASE).strip()
+            return ControllerDecision(
+                should_retrieve=True,
+                is_refine=True,
+                intent_type="REFINEMENT",
+                is_supersession=True,
+                refinement_type="supersession",
+                superseded_terms=[superseded_part],
+                sub_queries=[sub_q or active_part],
+                reasoning=f"Same-turn correction detected. Superseded '{superseded_part}', active target is '{active_part}'."
+            )
+
+        # 3. Explicit Removal Detection (e.g., "Forget hotel reimbursement, only cancellation")
+        removal_match = re.search(r"^(?:forget|remove|drop|exclude|skip|omit|without|don't need|no longer need)\s+(?:about\s+)?(.+?)(?:,\s*(?:only|just|keep)\s+(.+))?$", clean_text, re.IGNORECASE)
+        if removal_match:
+            removed_term = removal_match.group(1).strip()
+            retained_term = removal_match.group(2).strip() if removal_match.group(2) else ""
+            sub_queries = [retained_term] if retained_term else []
+            return ControllerDecision(
+                should_retrieve=bool(sub_queries),
+                is_refine=True,
+                intent_type="REFINEMENT",
+                is_removal=True,
+                refinement_type="removal",
+                superseded_terms=[removed_term],
+                sub_queries=sub_queries,
+                reasoning=f"Explicit removal detected. Removing intent '{removed_term}', retaining '{retained_term}'."
+            )
+
+        # 4. Cross-Turn Supersession / Correction Detection
+        supersede_signals = [
+            r"^(actually|instead|rather|no,|cancel that|wait,|scratch that|ignore that|forget|correct that|correction|not that)\b",
+            r"\b(instead of|rather than|actually i mean|actually mean|i meant|i mean|actually for|actually what about|actually check)\b",
+            r"^actually\b"
+        ]
+        is_supersession = has_prior_context and any(re.search(pat, clean_text, re.IGNORECASE) for pat in supersede_signals)
+
+        if is_supersession:
+            cleaned_query = re.sub(r"^(actually|instead|rather|no|wait|cancel that|scratch that|i meant|i mean|actually i mean|actually mean|actually for|actually what about|actually check)[,\s:]*", "", clean_text, flags=re.IGNORECASE).strip()
+            cleaned_query = re.sub(r"^(i mean|i meant|for|about)\s+", "", cleaned_query, flags=re.IGNORECASE).strip()
+            sub_queries = [cleaned_query or clean_text]
+            return ControllerDecision(
+                should_retrieve=True,
+                is_refine=True,
+                intent_type="REFINEMENT",
+                is_supersession=True,
+                refinement_type="supersession",
+                sub_queries=sub_queries,
+                reasoning="Cross-turn supersession detected. Superseding prior active context with refined query."
+            )
+
+        # 5. Continuation / Enrichment Detection (e.g. "for 30 people", "for a group", "in London")
+        continuation_signals = [
+            r"^(for|with|in|under|at|using|and for|specifically for|now for|what if|for a group|for \d+ people)\b"
+        ]
+        is_continuation = has_prior_context and any(re.search(pat, clean_text, re.IGNORECASE) for pat in continuation_signals)
+
+        if is_continuation:
+            prior_intent = session_state.active_intents[0] if session_state.active_intents else (session_state.covered_intents[0] if session_state.covered_intents else "")
+            enriched_query = f"{prior_intent} {clean_text}".strip()
+            return ControllerDecision(
+                should_retrieve=True,
+                is_refine=True,
+                intent_type="REFINEMENT",
+                is_continuation=True,
+                refinement_type="continuation",
+                sub_queries=[enriched_query, clean_text],
+                reasoning=f"Continuation detected. Enriching active intent '{prior_intent}' with constraint '{clean_text}'."
+            )
+
+        # 6. Travel Reimbursement Refinement / Constraint Modifier Detection
+        prior_context_list = session_state.active_intents + session_state.covered_intents + session_state.transcript_history
+        is_travel_domain = has_prior_context and any(
+            re.search(r"\b(travel|reimbursement|trip|per diem|employee trip)\b", t, re.IGNORECASE)
+            for t in prior_context_list
+        )
+
+        if is_travel_domain:
+            is_travel_modifier = bool(
+                re.search(r"\b(trip\s+was|booking\s+was|trip\s+is|booking\s+is|after\s+travel|booked\s+after|before\s+travel|booking\s+timing)\b", clean_text, re.IGNORECASE)
+                or (re.search(r"\b(international|domestic)\b", clean_text, re.IGNORECASE) and not is_venue_request and not is_booking_action)
+            )
+            if is_travel_modifier:
+                sub_queries = []
+                lower_text = clean_text.lower()
+                if "international" in lower_text:
+                    sub_queries.append("international employee travel reimbursement")
+                elif "domestic" in lower_text:
+                    sub_queries.append("domestic employee travel reimbursement")
+
+                if any(k in lower_text for k in ["after travel", "after the trip", "booked after", "booking was made after", "booking made after", "booking after travel", "booking timing"]):
+                    sub_queries.append("travel reimbursement booking made after travel")
+                elif "booking" in lower_text or "reservation" in lower_text:
+                    sub_queries.append("employee travel reimbursement booking timing and procedures")
+
+                if not sub_queries:
+                    sub_queries = [f"employee travel reimbursement {clean_text}"]
+
+                return ControllerDecision(
+                    should_retrieve=True,
+                    is_refine=True,
+                    intent_type="REFINEMENT",
+                    refinement_type="additive",
+                    is_continuation=True,
+                    sub_queries=sub_queries,
+                    reasoning="Travel reimbursement refinement detected. Preserving active domain 'travel_reimbursement' with constraints: " +
+                              ("geographic_scope=international, " if 'international' in lower_text else "") +
+                              ("booking_timing=after_travel" if any(k in lower_text for k in ['after travel', 'after the trip', 'booked after', 'booking was made after', 'booking made after']) else "")
+                )
+
+        # 7. Multi-Intent Decomposition (Additive)
+        split_pattern = r"(?:,\s*|\s+(?:and also|and what about|and what is|and what are|and how about|as well as|and)\s+)"
         parts = re.split(split_pattern, clean_text, flags=re.IGNORECASE)
         
-        # Clean and filter sub-queries
-        sub_queries: List[str] = []
+        sub_queries = []
         for part in parts:
             part_clean = part.strip().rstrip("?.,!")
-            # Remove leading conjunctions or conversational fillers
-            part_clean = re.sub(r"^(also|what about|how about|and|can you tell me|what is|what are)\s+", "", part_clean, flags=re.IGNORECASE).strip()
-            if part_clean and len(part_clean.split()) >= 2:
-                # Add question framing if needed
+            part_clean = re.sub(r"^(also|what about|how about|and|can you tell me|what is|what are|tell me about)\s+", "", part_clean, flags=re.IGNORECASE).strip()
+            if part_clean and len(part_clean.split()) >= 1:
                 sub_queries.append(part.strip())
 
         if not sub_queries:
             sub_queries = [clean_text]
 
-        # In refinement mode with prior context, focus sub-query on the delta
-        if is_refinement:
-            reasoning = f"Session refinement detected with prior context. Decomposed into {len(sub_queries)} delta sub-queries."
+        # Determine classified intent type
+        if is_venue_request:
+            inferred_intent = "LOCATION_VENUE_REQUEST"
+        elif is_booking_action:
+            inferred_intent = "BOOKING_ACTION"
+        elif is_unsupported_directory:
+            inferred_intent = "UNSUPPORTED"
+        elif any(w in clean_text.lower() for w in ["compare", "difference between", "versus", "vs"]):
+            inferred_intent = "COMPARISON"
+        elif any(w in clean_text.lower() for w in ["recommend", "suggestion", "best practices"]):
+            inferred_intent = "RECOMMENDATION"
+        elif any(w in clean_text.lower() for w in ["requirement", "rules", "regulations", "standards", "safety", "measures"]):
+            inferred_intent = "REQUIREMENTS"
         else:
-            reasoning = f"Corpus query identified. Decomposed into {len(sub_queries)} sub-queries."
+            inferred_intent = "INFORMATION_LOOKUP"
 
         return ControllerDecision(
             should_retrieve=True,
-            is_refine=is_refinement,
+            is_refine=False,
+            intent_type=inferred_intent,
+            refinement_type="additive" if len(sub_queries) > 1 else "none",
             sub_queries=sub_queries,
-            reasoning=reasoning
+            reasoning=f"Corpus query identified as {inferred_intent}. Decomposed into {len(sub_queries)} sub-queries."
         )
 
     async def evaluate_t1_decision(
@@ -297,6 +432,7 @@ class TwoTierController:
                 class T1StructuredDecision(BaseModel):
                     should_retrieve: bool = Field(description="True if factual policy evidence from the corpus is required, False for conversational or formatting turns.")
                     is_refine: bool = Field(description="True if this turn refines, clarifies, or updates an existing answer/session state.")
+                    intent_type: str = Field(default="REQUIREMENTS", description="Intent type: INFORMATION_LOOKUP, REQUIREMENTS, COMPARISON, RECOMMENDATION, LOCATION_VENUE_REQUEST, BOOKING_ACTION, REFINEMENT, CONVERSATIONAL, UNSUPPORTED.")
                     sub_queries: List[str] = Field(default_factory=list, description="Atomic search queries targeting missing intents.")
                     reasoning: str = Field(description="Brief explanation of the decision.")
 
@@ -315,9 +451,10 @@ Analyze the user's transcript in the context of the active session state.
 
 Decide:
 1. should_retrieve: Is corpus search necessary? (False for greetings, formatting, acknowledgements).
-2. is_refine: Does this update/refine prior context?
-3. sub_queries: List of atomic, specific queries for retrieval. If multi-intent, decompose into separate queries. If refinement, search ONLY for the delta.
-4. reasoning: Short explanation.
+2. is_refine: Does this update/refine prior context? (True if modifying, adding constraints, or clarifying previous turn).
+3. intent_type: One of [INFORMATION_LOOKUP, REQUIREMENTS, COMPARISON, RECOMMENDATION, LOCATION_VENUE_REQUEST, BOOKING_ACTION, REFINEMENT, CONVERSATIONAL, UNSUPPORTED]. (Note: Our corpus contains event safety, crowd, food hygiene, accessibility, emergency standards, and employee travel reimbursement; it does NOT contain commercial hotel directories or booking systems).
+4. sub_queries: List of atomic, specific queries for retrieval. If refinement/follow-up modifying an existing active domain (e.g. travel reimbursement), retain the active domain in each sub-query (e.g. for travel reimbursement with follow-up 'international and booking after travel', output ['international employee travel reimbursement', 'travel reimbursement booking made after travel']). Never search generic modifiers like 'international' alone.
+5. reasoning: Short explanation.
 """
                 response = client.models.generate_content(
                     model=self.settings.llm_model,
@@ -334,22 +471,10 @@ Decide:
                     decision = ControllerDecision(
                         should_retrieve=parsed.get("should_retrieve", True),
                         is_refine=parsed.get("is_refine", False),
+                        intent_type=parsed.get("intent_type", "REQUIREMENTS"),
                         sub_queries=parsed.get("sub_queries", [transcript]),
                         reasoning=parsed.get("reasoning", "")
                     )
-                    elapsed_ms = (time.perf_counter() - start_time) * 1000
-                    if self.telemetry:
-                        try:
-                            self.telemetry.log_t1_decision(
-                                session_id=session_state.session_id,
-                                retrieve=decision.should_retrieve,
-                                is_refine=decision.is_refine,
-                                sub_queries=decision.sub_queries,
-                                answer_version=session_state.answer_version,
-                                latency_ms=elapsed_ms
-                            )
-                        except Exception:
-                            pass
                     return decision
             except Exception as e:
                 # Log warning and proceed to fallback
@@ -357,19 +482,6 @@ Decide:
 
         # Fallback deterministic router
         decision = self._fallback_t1_reasoning(transcript, session_state)
-        elapsed_ms = (time.perf_counter() - start_time) * 1000
-        if self.telemetry:
-            try:
-                self.telemetry.log_t1_decision(
-                    session_id=session_state.session_id,
-                    retrieve=decision.should_retrieve,
-                    is_refine=decision.is_refine,
-                    sub_queries=decision.sub_queries,
-                    answer_version=session_state.answer_version,
-                    latency_ms=elapsed_ms
-                )
-            except Exception:
-                pass
         return decision
 
     async def process_incoming_transcript(

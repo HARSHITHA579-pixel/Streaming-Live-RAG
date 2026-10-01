@@ -1,15 +1,8 @@
 """
-Unit and Integration Tests for Evaluation and Replay Framework
-
-================================================================================
-TEST COVERAGE:
-1. Transcript loading (valid JSON parsing, chunks extraction, offset ordering)
-2. Scenario discovery (all 8 required benchmark scenarios present in eval/test_transcripts)
-3. Replay result schema (mandatory fields, types, and serializability)
-4. Gate evaluation (G1 through G8 individual gate logic and overall evaluation)
-5. Failure handling (graceful capture of exceptions without pipeline crash)
-6. Deterministic result structure (machine-readable JSON outputs in eval/results/)
-================================================================================
+Validates the Evaluation Framework and Timed Transcript Replay Harness in Streaming Live RAG.
+Ensures scenario transcript parsing, live streaming replay simulation, result serialization,
+and architectural gate evaluation (G1-G8) function deterministically.
+Demonstrates: Benchmark scenario discovery, deterministic replay, and automated gate validation.
 """
 
 import sys

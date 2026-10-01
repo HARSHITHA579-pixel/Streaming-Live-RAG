@@ -114,7 +114,8 @@ class HybridRetriever:
             from sklearn.preprocessing import normalize
             vec_sparse: Any = self._get_vectorizer().transform([query])
             vec_dense = vec_sparse.toarray().astype(np.float32)
-            return normalize(vec_dense, norm="l2", axis=1).astype(np.float32)[0]
+            norm_dense = cast(Any, normalize(vec_dense, norm="l2", axis=1))
+            return np.asarray(norm_dense, dtype=np.float32)[0]
 
         # If GenAI API key is present or manifest requires genai
         if api_key and api_key.strip():
@@ -148,8 +149,8 @@ class HybridRetriever:
         from sklearn.preprocessing import normalize
         vec_sparse = self._get_vectorizer().transform([query])
         vec_dense = vec_sparse.toarray().astype(np.float32)
-        normalized_vec = normalize(vec_dense, norm="l2", axis=1).astype(np.float32)[0]
-        return normalized_vec
+        norm_dense = cast(Any, normalize(vec_dense, norm="l2", axis=1))
+        return np.asarray(norm_dense, dtype=np.float32)[0]
 
     def load_indexes(self) -> None:
         """
@@ -188,7 +189,7 @@ class HybridRetriever:
         self.embeddings = np.load(embeddings_path)
 
         # 4. Strict Validation Checks
-        meta_count = len(self.chunk_metadata)
+        meta_count = len(self.chunk_metadata) if self.chunk_metadata is not None else 0
         bm25_count = getattr(self.bm25_index, "corpus_size", 0)
         emb_rows = self.embeddings.shape[0] if self.embeddings is not None else 0
 
@@ -203,7 +204,7 @@ class HybridRetriever:
         self.chunk_by_id.clear()
         required_fields = ["doc_id", "chunk_id", "title", "source_file", "text"]
 
-        for idx, entry in enumerate(self.chunk_metadata):
+        for idx, entry in enumerate(self.chunk_metadata or []):
             for field_name in required_fields:
                 if not entry.get(field_name):
                     raise ValueError(f"Metadata entry at index {idx} missing required field '{field_name}'.")
@@ -294,6 +295,84 @@ class HybridRetriever:
         sorted_chunks = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
         return sorted_chunks
 
+    def _detect_geographic_scope(self, query: str) -> Tuple[List[str], List[str], bool, bool]:
+        """
+        Generic detector for geographic entities (cities, states, national, international).
+        """
+        q_lower = query.lower()
+
+        # Generic Indian City to State mapping
+        indian_cities_to_state = {
+            "chennai": "tamil nadu",
+            "madras": "tamil nadu",
+            "hyderabad": "telangana",
+            "bengaluru": "karnataka",
+            "bangalore": "karnataka",
+            "mumbai": "maharashtra",
+            "bombay": "maharashtra",
+            "pune": "maharashtra",
+            "kolkata": "west bengal",
+            "calcutta": "west bengal",
+            "ahmedabad": "gujarat",
+            "surat": "gujarat",
+            "vadodara": "gujarat",
+            "delhi": "delhi",
+            "new delhi": "delhi",
+            "noida": "uttar pradesh",
+            "lucknow": "uttar pradesh",
+            "kanpur": "uttar pradesh",
+            "varanasi": "uttar pradesh",
+            "agra": "uttar pradesh",
+            "prayagraj": "uttar pradesh",
+            "allahabad": "uttar pradesh",
+            "kochi": "kerala",
+            "cochin": "kerala",
+            "thiruvananthapuram": "kerala",
+            "trivandrum": "kerala",
+            "kozhikode": "kerala",
+            "calicut": "kerala",
+            "panaji": "goa",
+            "shillong": "meghalaya",
+            "jaipur": "rajasthan",
+            "chandigarh": "punjab",
+            "patna": "bihar",
+            "bhopal": "madhya pradesh",
+            "indore": "madhya pradesh",
+            "guwahati": "assam",
+            "bhubaneswar": "odisha",
+            "ranchi": "jharkhand",
+            "dehradun": "uttarakhand",
+            "shimla": "himachal pradesh",
+            "srinagar": "jammu and kashmir",
+        }
+
+        indian_states = [
+            "uttar pradesh", "up", "kerala", "goa", "meghalaya", "tamil nadu",
+            "maharashtra", "gujarat", "karnataka", "telangana", "andhra pradesh",
+            "west bengal", "rajasthan", "punjab", "haryana", "bihar", "madhya pradesh",
+            "odisha", "assam", "delhi"
+        ]
+
+        # Identify location signals in the query using whole-word matching
+        matched_cities = [c for c in indian_cities_to_state.keys() if re.search(r"\b" + re.escape(c) + r"\b", q_lower)]
+        matched_states = [s for s in indian_states if re.search(r"\b" + re.escape(s) + r"\b", q_lower)]
+
+        # If a city was matched, add its corresponding state as an implied state target
+        for c in matched_cities:
+            st = indian_cities_to_state[c]
+            if st not in matched_states:
+                matched_states.append(st)
+
+        is_international_query = bool(re.search(
+            r"\b(international|global|uk|australia|monash|overseas|foreign|abroad|hse|victoria|perth)\b",
+            q_lower
+        ))
+        is_india_query = bool(
+            matched_cities or matched_states or re.search(r"\b(india|indian|national|fssai|ndma|railway|bye-laws|pandal)\b", q_lower)
+        )
+
+        return matched_cities, matched_states, is_india_query, is_international_query
+
     async def retrieve_hybrid_for_sub_query(
         self,
         sub_query: str,
@@ -301,16 +380,36 @@ class HybridRetriever:
         top_k: Optional[int] = None
     ) -> List[RetrievedEvidence]:
         """
-        Performs BM25 + Dense retrieval followed by RRF for a single sub-query.
+        Performs BM25 + Dense retrieval followed by RRF for a single sub-query,
+        incorporating hierarchical fallback retrieval when querying Indian regions.
         """
         k_val = top_k or getattr(self.settings, "retrieval_top_k_per_query", 4)
-        fetch_k = max(k_val * 2, 10)
+        fetch_k = max(k_val * 15, 60)
 
         bm25_res = await self.retrieve_bm25_for_sub_query(sub_query, top_k=fetch_k)
         dense_res = await self.retrieve_dense_for_sub_query(sub_query, top_k=fetch_k)
 
         rrf_res = self.compute_rrf(bm25_res, dense_res, k=getattr(self.settings, "rrf_k", 60))
-        top_rrf = rrf_res[:k_val]
+
+        # Hierarchical Indian Fallback Discovery:
+        # If querying an Indian entity or general Indian requirements, ensure national/state
+        # baseline evidence is retrieved into the candidate pool if local docs are unavailable.
+        matched_cities, matched_states, is_india, is_intl = self._detect_geographic_scope(sub_query)
+        if is_india and not is_intl:
+            clean_q = re.sub(r"\b(in|for|at|the|what|are|requirements|guidelines)\b", "", sub_query, flags=re.IGNORECASE)
+            fallback_q = f"{clean_q} India national state guidelines mass gathering festival building bye laws public assembly temporary structure crowd safety"
+            fb_bm25 = await self.retrieve_bm25_for_sub_query(fallback_q, top_k=fetch_k)
+            fb_dense = await self.retrieve_dense_for_sub_query(fallback_q, top_k=fetch_k)
+            fb_rrf = self.compute_rrf(fb_bm25, fb_dense, k=getattr(self.settings, "rrf_k", 60))
+
+            # Merge Indian chunks from fallback retrieval
+            combined_scores = dict(rrf_res)
+            for cid, score in fb_rrf:
+                if self.chunk_by_id[cid]["source_priority"] < 4:
+                    combined_scores[cid] = max(combined_scores.get(cid, 0.0), score)
+            rrf_res = sorted(combined_scores.items(), key=lambda x: x[1], reverse=True)
+
+        top_rrf = rrf_res[:fetch_k]
 
         evidence_list: List[RetrievedEvidence] = []
         for chunk_id, rrf_score in top_rrf:
@@ -323,7 +422,14 @@ class HybridRetriever:
                 text=meta["text"],
                 score=rrf_score,
                 sub_query_id=sub_query_id,
-                retrieval_method="rrf"
+                retrieval_method="rrf",
+                page_number=meta.get("page_number", 1),
+                geographic_scope=meta.get("geographic_scope", "General"),
+                scope_level=meta.get("scope_level", "general"),
+                source_priority=meta.get("source_priority", 4),
+                source_file=meta.get("source_file", ""),
+                source_path=meta.get("source_path", ""),
+                document_title=meta.get("document_title") or meta.get("title")
             )
             evidence_list.append(evidence)
 
@@ -335,12 +441,64 @@ class HybridRetriever:
         candidate_chunks: List[RetrievedEvidence]
     ) -> List[RetrievedEvidence]:
         """
-        Orders candidate chunks across sub-queries. For this milestone, high-precision RRF
-        ranking and deduplication are used without expensive external cross-encoders.
+        Orders candidate chunks across sub-queries with source-scope and geographic awareness.
+        Specificity fallback hierarchy:
+        1. City/local authority-specific evidence
+        2. State-specific evidence
+        3. India-wide/general Indian evidence
+        4. International/general baseline evidence
+
+        Semantic relevance remains foundational; geographic specificity acts as an
+        adaptive alignment boost.
         """
-        # Sort candidates descending by their retrieval score
-        sorted_candidates = sorted(candidate_chunks, key=lambda c: c.score, reverse=True)
+        if not candidate_chunks:
+            return []
+
+        # Combine all sub-queries to understand global query geographic scope
+        combined_query = " ".join(sub_queries)
+        matched_cities, matched_states, is_india_query, is_international_query = self._detect_geographic_scope(combined_query)
+
+        def calculate_ranked_score(chunk: RetrievedEvidence) -> float:
+            base_score = chunk.score
+            scope_str = (chunk.geographic_scope or "").lower()
+            priority = chunk.source_priority  # 1: city, 2: state, 3: national, 4: international
+
+            boost = 0.0
+
+            # 1. Exact city match (e.g. Delhi for Delhi query)
+            if matched_cities and any(c in scope_str for c in matched_cities):
+                boost += 0.050
+            # 2. Exact state match (e.g. UP for UP query, Kerala for Kerala query)
+            elif matched_states and any(s in scope_str for s in matched_states):
+                boost += 0.035
+            # 3. Explicit international query
+            elif is_international_query and not is_india_query:
+                if priority == 4:
+                    boost += 0.020
+            # 4. India query / Indian city query fallback hierarchy
+            elif is_india_query:
+                if priority == 1:
+                    boost += 0.022
+                elif priority == 2:
+                    boost += 0.022
+                elif priority == 3:
+                    boost += 0.025  # National baseline (e.g. Model Building Bye-Laws, NDMA) prioritized for unindexed Indian cities
+                elif priority == 4:
+                    boost += 0.000  # International baseline used only if Indian evidence is unavailable/insufficient
+            # 5. Generic query without explicit geo-target
+            else:
+                if priority in (1, 2, 3):
+                    boost += 0.010
+                elif priority == 4:
+                    boost += 0.000
+
+            return base_score + boost
+
+        # Sort candidate chunks by combined score descending
+        sorted_candidates = sorted(candidate_chunks, key=calculate_ranked_score, reverse=True)
         return sorted_candidates
+
+
 
     def apply_minimum_evidence_guarantee(
         self,
@@ -356,16 +514,16 @@ class HybridRetriever:
         final_evidence: List[RetrievedEvidence] = []
         seen_chunk_ids: Set[str] = set()
 
-        # 1. Guarantee top chunks for each distinct sub-query intent
-        for sub_query_id, candidates in sub_query_candidates.items():
+        # 1. Guarantee top reranked chunks for each distinct sub-query intent
+        for sub_query_id in sub_query_candidates.keys():
             added_for_intent = 0
-            for chunk in candidates:
-                if chunk.chunk_id not in seen_chunk_ids:
+            for chunk in reranked_pool:
+                if chunk.sub_query_id == sub_query_id and chunk.chunk_id not in seen_chunk_ids:
                     final_evidence.append(chunk)
                     seen_chunk_ids.add(chunk.chunk_id)
                     added_for_intent += 1
-                if added_for_intent >= min_intent:
-                    break
+                    if added_for_intent >= min_intent:
+                        break
 
         # 2. Fill remaining slots from top global reranked pool
         for chunk in reranked_pool:
@@ -374,6 +532,7 @@ class HybridRetriever:
                 seen_chunk_ids.add(chunk.chunk_id)
 
         return final_evidence
+
 
     async def retrieve_for_sub_queries(
         self,

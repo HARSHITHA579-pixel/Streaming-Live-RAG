@@ -1,19 +1,8 @@
 """
-End-to-End Streaming Pipeline and WebSocket Integration Tests
-
-================================================================================
-TEST COVERAGE:
-1. Partial transcript -> WAIT (T0 Gate prevents premature retrieval)
-2. Stable single-intent query -> RETRIEVAL + GROUNDED ANSWER
-3. Multi-intent query -> Multi-subquery decomposition + balanced retrieval
-4. Refinement turn -> Delta retrieval + Session state preservation + answer_version increment
-5. Conversational turn -> No-retrieval bypass
-6. Unsupported query -> Factual grounding refusal / uncertainty note
-7. Citation preservation across pipeline and turns
-8. Session isolation between concurrent sessions
-9. WebSocket streaming endpoint via TestClient (asyncio.Queue ingestion & frame emission)
-10. Telemetry generation and HTTP inspection endpoints
-================================================================================
+Validates the End-to-End Streaming Pipeline and WebSocket Integration in Streaming Live RAG.
+Ensures live transcript streams, multi-turn conversational refinements, delta retrievals,
+and answer versioning execute reliably across concurrent isolated sessions without state leakage.
+Demonstrates: Full streaming lifecycle, WebSocket protocol frames, session state continuity, and versioned answer updates.
 """
 
 import sys
@@ -137,40 +126,224 @@ async def test_multi_intent_decomposition():
 
 
 @pytest.mark.asyncio
-async def test_refinement_delta_retrieval():
+async def test_test1_additive_multi_intent():
     """
-    4. Refinement -> delta retrieval, state preserved, answer_version incremented
+    TEST 1 — Additive multi-intent
+    Input: "hotel reimbursement and cancellation policy"
+    Expected: Both intents remain active and final answer can contain both.
     """
-    session_id = "test_refinement"
+    session_id = "test1_additive"
+    query = "hotel reimbursement and cancellation policy"
 
-    # Turn 1: Initial query
-    turn1_query = "What is the expense reimbursement submission timeline?"
-    events_t1 = await orchestrator.process_streaming_transcript(
+    events = await orchestrator.process_streaming_transcript(
         session_id=session_id,
-        transcript_chunk=turn1_query
+        transcript_chunk=query
     )
-    ans_t1 = next(e for e in events_t1 if e["event"] == "answer")
+
+    ctrl_event = next(e for e in events if e["event"] == "controller")
+    assert ctrl_event["t0_stable"] is True
+    assert ctrl_event["should_retrieve"] is True
+    assert len(ctrl_event["sub_queries"]) >= 2
+
+    session = active_sessions[session_id]
+    assert len(session.active_intents) >= 2
+    assert any("hotel" in i.lower() for i in session.active_intents)
+    assert any("cancellation" in i.lower() for i in session.active_intents)
+
+    ans_event = next(e for e in events if e["event"] == "answer")
+    assert ans_event["answer_version"] == 1
+
+
+@pytest.mark.asyncio
+async def test_test2_cross_turn_refinement():
+    """
+    TEST 2 — Cross-turn refinement
+    Turn 1: "Tell me about Pune travel."
+    Turn 2: "Actually, I mean international travel."
+    Expected:
+    - Same session_id
+    - answer_version increases
+    - Pune evidence becomes stale/superseded
+    - International evidence active
+    - Final answer does NOT contain Pune-specific policy information
+    """
+    session_id = "test2_cross_refine"
+
+    # Turn 1
+    t1_events = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="Tell me about Pune travel."
+    )
+    ans_t1 = next(e for e in t1_events if e["event"] == "answer")
     assert ans_t1["answer_version"] == 1
-    evidence_count_t1 = len(active_sessions[session_id].evidence_pool)
+    session = active_sessions[session_id]
 
-    # Turn 2: Follow-up refinement
-    turn2_query = "Actually, I mean international travel currency conversion rules."
-    events_t2 = await orchestrator.process_streaming_transcript(
+    # Turn 2
+    t2_events = await orchestrator.process_streaming_transcript(
         session_id=session_id,
-        transcript_chunk=turn2_query
+        transcript_chunk="Actually, I mean international travel."
+    )
+    ans_t2 = next(e for e in t2_events if e["event"] == "answer")
+    assert ans_t2["answer_version"] == 2
+    assert session.session_id == session_id
+
+    # Active evidence should only contain international travel
+    assert len(session.active_evidence_pool) > 0
+    for chunk in session.active_evidence_pool.values():
+        assert "pune" not in chunk.text.lower()
+
+    # Final answer should not contain Pune policy info
+    assert "pune" not in ans_t2["answer"].lower()
+    assert "international" in ans_t2["answer"].lower()
+
+
+@pytest.mark.asyncio
+async def test_test3_same_turn_refinement():
+    """
+    TEST 3 — Same-turn refinement
+    Input: "Pune travel, actually international travel."
+    Expected:
+    - Pune is superseded.
+    - International is active.
+    """
+    session_id = "test3_same_turn"
+    events = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="Pune travel, actually international travel."
     )
 
-    ctrl_t2 = next(e for e in events_t2 if e["event"] == "controller")
+    ctrl_event = next(e for e in events if e["event"] == "controller")
+    assert ctrl_event["is_refine"] is True
+    assert ctrl_event["is_supersession"] is True
+
+    session = active_sessions[session_id]
+    assert any("international" in i.lower() for i in session.active_intents)
+    assert not any("pune" in i.lower() for i in session.active_intents)
+
+    ans_event = next(e for e in events if e["event"] == "answer")
+    assert "international" in ans_event["answer"].lower()
+    assert "pune" not in ans_event["answer"].lower()
+
+
+@pytest.mark.asyncio
+async def test_test4_continuation():
+    """
+    TEST 4 — Continuation
+    Turn 1: "Tell me about hotel reimbursement."
+    Turn 2: "for 30 people"
+    Expected:
+    - Hotel reimbursement remains active and gets enriched.
+    - It is NOT replaced.
+    """
+    session_id = "test4_continuation"
+
+    # Turn 1
+    await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="Tell me about hotel reimbursement."
+    )
+    session = active_sessions[session_id]
+    assert any("hotel" in i.lower() for i in session.active_intents)
+
+    # Turn 2
+    t2_events = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="for 30 people"
+    )
+    ctrl_t2 = next(e for e in t2_events if e["event"] == "controller")
     assert ctrl_t2["is_refine"] is True
-    assert ctrl_t2["should_retrieve"] is True
+    assert ctrl_t2["is_continuation"] is True
+    assert session.answer_version == 2
 
-    ans_t2 = next(e for e in events_t2 if e["event"] == "answer")
+    # Intent is enriched and preserved
+    assert any("hotel" in i.lower() or "30 people" in i.lower() for i in session.active_intents)
+    assert len(session.superseded_evidence_pool) == 0  # Not superseded
+
+
+@pytest.mark.asyncio
+async def test_test5_explicit_removal():
+    """
+    TEST 5 — Explicit removal
+    Turn 1: "hotel reimbursement and cancellation policy"
+    Turn 2: "Forget hotel reimbursement, only cancellation."
+    Expected:
+    - Only cancellation remains active.
+    - Hotel reimbursement removed from active context.
+    """
+    session_id = "test5_removal"
+
+    # Turn 1
+    await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="hotel reimbursement and cancellation policy"
+    )
+    session = active_sessions[session_id]
+    assert any("hotel" in i.lower() for i in session.active_intents)
+    assert any("cancellation" in i.lower() for i in session.active_intents)
+
+    # Turn 2
+    t2_events = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="Forget hotel reimbursement, only cancellation."
+    )
+    ctrl_t2 = next(e for e in t2_events if e["event"] == "controller")
+    assert ctrl_t2["is_refine"] is True
+    assert ctrl_t2["is_removal"] is True
+
+    # Check active intents and active evidence
+    assert any("cancellation" in i.lower() for i in session.active_intents)
+    assert not any("hotel" in i.lower() for i in session.active_intents)
+
+    for chunk in session.active_evidence_pool.values():
+        if "cancellation" in chunk.text.lower():
+            continue
+        assert "hotel nightly rate" not in chunk.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_test6_no_stale_evidence_leakage():
+    """
+    TEST 6 — No stale evidence leakage
+    Old: "domestic travel"
+    New: "Actually, I mean international travel."
+    Assert that old domestic-only facts ($85 domestic per diem, 14 days domestic booking,
+    domestic rail, $220 domestic hotel cap) do NOT appear in the refined answer.
+    Assert that international facts (30 days, $125 or $95 per diem, business class) DO appear.
+    """
+    session_id = "test6_leakage"
+
+    # Turn 1: Domestic travel query
+    t1_events = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="What are the domestic travel guidelines, domestic per diem, and booking timelines?"
+    )
+    ans_t1 = next(e for e in t1_events if e["event"] == "answer")
+    assert ans_t1["answer_version"] == 1
+    assert "travel" in ans_t1["answer"].lower() or "$85" in ans_t1["answer"] or "domestic" in ans_t1["answer"].lower()
+
+    # Turn 2: Superseded by international travel
+    t2_events = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="Actually, I mean international travel."
+    )
+    ans_t2 = next(e for e in t2_events if e["event"] == "answer")
     assert ans_t2["answer_version"] == 2
-    assert ans_t2["is_refinement"] is True
+    refined_answer = ans_t2["answer"]
 
-    # Evidence pool should accumulate (not wipe out)
-    evidence_count_t2 = len(active_sessions[session_id].evidence_pool)
-    assert evidence_count_t2 >= evidence_count_t1
+    # Strict assertion: NO domestic-only policy facts in the refined v2 answer
+    domestic_stale_facts = [
+        "$85",
+        "14 days",
+        "14 calendar days prior to domestic",
+        "domestic rail",
+        "$220",
+        "$0.67 per mile"
+    ]
+    for stale_fact in domestic_stale_facts:
+        assert stale_fact not in refined_answer, f"Stale domestic fact '{stale_fact}' leaked into refined answer:\n{refined_answer}"
+
+    # International facts MUST be present
+    assert any(term in refined_answer.lower() for term in ["international", "30 calendar days", "30 days", "$125", "$95", "business class", "passport", "visa"])
 
 
 @pytest.mark.asyncio
@@ -345,3 +518,54 @@ def test_telemetry_endpoint():
     assert telemetry_data["session_id"] == session_id
     assert telemetry_data["count"] > 0
     assert len(telemetry_data["events"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_same_turn_multisegment_retrieval_and_synthesis():
+    """
+    11. Verify same-turn multi-segment voice streaming:
+    Segment 1 (is_final=False) -> background retrieval -> evidence accumulated
+    Segment 2 (is_final=False) -> background retrieval -> evidence pool expanded
+    Final Stop (is_final=True) -> unified synthesis covering all supported segments
+    """
+    session_id = "test_multiseg_turn"
+
+    # Segment 1: Fire safety temporary structures
+    ev1 = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="What are the fire safety requirements for temporary event structures?",
+        is_final=False
+    )
+    # No premature answer in segment 1
+    assert not any(e["event"] == "answer" for e in ev1)
+    session = active_sessions[session_id]
+    pool_size_1 = len(session.evidence_pool)
+    assert pool_size_1 > 0
+
+    # Segment 2: Crowd management mass gathering
+    ev2 = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk="What crowd control measures are required for a mass gathering?",
+        is_final=False
+    )
+    # No premature answer in segment 2
+    assert not any(e["event"] == "answer" for e in ev2)
+    pool_size_2 = len(session.evidence_pool)
+    assert pool_size_2 >= pool_size_1
+
+    # Final Stop: Complete transcript with both topics
+    full_turn = "What are the fire safety requirements for temporary event structures and what crowd control measures are required for a mass gathering?"
+    ev_final = await orchestrator.process_streaming_transcript(
+        session_id=session_id,
+        transcript_chunk=full_turn,
+        is_final=True
+    )
+    ans_evt = next((e for e in ev_final if e["event"] == "answer"), None)
+    assert ans_evt is not None
+    assert ans_evt["answer_version"] == 1
+    assert len(ans_evt["citations"]) >= 2
+    # Check that both fire and crowd/event topics are cited
+    assert any("fire" in c.lower() or "safety" in c.lower() or "event" in c.lower() or "guide" in c.lower() for c in ans_evt["citations"])
+    assert any("crowd" in c.lower() or "gathering" in c.lower() or "event" in c.lower() or "guide" in c.lower() for c in ans_evt["citations"])
+
+

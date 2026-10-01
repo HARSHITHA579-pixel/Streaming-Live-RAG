@@ -2,5 +2,5 @@
   "embedding_backend": "local",
   "embedding_model": "local-hashing",
   "embedding_dimension": 768,
-  "chunk_count": 40
+  "chunk_count": 448
 }

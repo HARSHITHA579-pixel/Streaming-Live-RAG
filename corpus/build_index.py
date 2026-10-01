@@ -4,32 +4,32 @@ Corpus Index Builder for Streaming RAG
 ================================================================================
 RESPONSIBILITY:
 - Read raw documents from `corpus/raw_docs/`.
-- Extract text while strictly preserving document IDs, hierarchy, and section information.
+- Discover and filter ONLY active corpus directories:
+    01_event_planning, 02_food_catering, 03_travel_reimbursement,
+    04_pune_venues, 05_india_general, 06_international_general
+- Exclude old/inactive folders (02_crowd_management, 03_safety_emergency,
+  04_event_permits_compliance, 05_accessibility) and deprecated files.
+- Extract text page-by-page preserving document IDs, hierarchy, and section information.
 - Chunk documents using configured chunk size and overlap strategies.
-- Store granular metadata for every chunk (chunk_id, doc_id, section, content, token_count).
-- Build the sparse BM25 index and serialize it.
-- Generate dense vector embeddings for all chunks via embedding model API/local model.
-- Save indices and metadata artifacts into the `data/` directory.
+- Store granular metadata for every chunk (chunk_id, doc_id, category, city,
+  source_file, section, content, token_count, geographic_scope).
+- Build the sparse BM25 index and serialize it to `data/bm25_index.pkl`.
+- Generate dense vector embeddings for all chunks and serialize to `data/embeddings.npy`.
+- Save chunk metadata to `data/chunk_metadata.json` and index manifest to `data/index_manifest.json`.
 
 INPUTS:
-- Raw text / markdown / PDF documents placed in `corpus/raw_docs/`.
+- Raw PDF documents in active folders under `corpus/raw_docs/`.
 - Indexing hyperparameters from `app.config.Settings` (chunk_size, chunk_overlap, embedding model).
 
 OUTPUTS:
-- `data/bm25_index.pkl`: Serialized BM25 index with tokenized corpus vocabulary.
+- `data/bm25_index.pkl`: Serialized BM25 index.
 - `data/embeddings.npy`: Dense embedding vectors (N x D float32 matrix).
-- `data/chunk_metadata.json`: Chunk-to-document mapping containing doc_id, section title,
-  chunk_id, text snippet, and token offsets.
+- `data/chunk_metadata.json`: Chunk provenance records with category, city, and source_file.
+- `data/index_manifest.json`: Manifest recording embedding backend, dimensions, and chunk count.
 
 CONNECTED COMPONENTS:
 - `app.config`: Reads indexing parameters (chunk sizes, embedding models, output paths).
-- `app.retriever`: Consumes the generated BM25 index, embedding matrix, and chunk metadata
-  during runtime hybrid search.
-
-WHY THIS ARCHITECTURE:
-- The corpus is the sole ground truth of factual evidence.
-- Preserving section metadata during indexing enables high-precision citations
-  (e.g., "Doc_12 §2") required by the downstream claim verifier and synthesis engine.
+- `app.retriever`: Consumes the generated BM25 index, embedding matrix, and chunk metadata.
 ================================================================================
 """
 
@@ -37,11 +37,23 @@ import os
 import re
 import json
 import pickle
-import hashlib
-import numpy as np
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional, cast
+from typing import List, Dict, Any, Optional, Tuple, Set, cast
 from pathlib import Path
+import numpy as np
+
+try:
+    import pymupdf  # type: ignore
+except ImportError:
+    try:
+        import fitz as pymupdf  # type: ignore
+    except ImportError:
+        pymupdf = None
+
+try:
+    import pypdf  # type: ignore
+except ImportError:
+    pypdf = None
 
 try:
     from rank_bm25 import BM25Okapi
@@ -51,7 +63,6 @@ except ImportError:
 try:
     from app.config import settings, Settings
 except ImportError:
-    # Fallback if imported outside package context
     @dataclass
     class SettingsFallback:
         chunk_size: int = 512
@@ -62,6 +73,205 @@ except ImportError:
         data_dir: Path = Path("data")
         llm_api_key: str = ""
     settings = SettingsFallback()
+
+
+# Active category normalization mapping
+CATEGORY_ALIAS_MAP: Dict[str, str] = {
+    "01_event_planning": "event_planning",
+    "event_planning": "event_planning",
+    "02_food_catering": "catering",
+    "06_food_catering": "catering",
+    "food_catering": "catering",
+    "catering": "catering",
+    "03_travel_reimbursement": "travel_reimbursement",
+    "09_travel_reimbursement": "travel_reimbursement",
+    "travel_reimbursement": "travel_reimbursement",
+    "04_pune_venues": "pune_venue",
+    "10_pune_venues": "pune_venue",
+    "pune_venues": "pune_venue",
+    "pune_venue": "pune_venue",
+    "05_india_general": "india_general",
+    "07_india_general": "india_general",
+    "india_general": "india_general",
+    "06_international_general": "international_general",
+    "08_international_general": "international_general",
+    "international_general": "international_general",
+}
+
+# Explicitly excluded old folders
+EXCLUDED_FOLDERS: Set[str] = {
+    "02_crowd_management",
+    "crowd_management",
+    "03_safety_emergency",
+    "safety_emergency",
+    "04_event_permits_compliance",
+    "event_permits_compliance",
+    "05_accessibility",
+    "accessibility",
+}
+
+# Explicitly excluded deprecated files
+EXCLUDED_FILENAMES: Set[str] = {
+    "MODEL-BUILDING-BYE-LAWS-2016.pdf",
+    "MODEL-BUILDING-BYE-LAWS.pdf",
+    "model-building-bye-laws-2016.pdf",
+    "model_building_bye_laws_2016.pdf",
+    "model_building_bye_laws.pdf",
+}
+
+# Detailed document metadata registry for active corpus PDFs
+DOCUMENT_REGISTRY: Dict[str, Dict[str, Any]] = {
+    # 01_event_planning
+    "14293-Events-Guidelines-2022.pdf": {
+        "doc_id": "wa_events_guidelines_2022",
+        "title": "Guidelines for Events in Western Australia 2022",
+        "geographic_scope": "International",
+        "scope_level": "international",
+        "source_priority": 4,
+        "category": "event_planning",
+        "city": None,
+    },
+    "Event_Guide.pdf": {
+        "doc_id": "event_guide",
+        "title": "Event Planning Guide",
+        "geographic_scope": "International",
+        "scope_level": "international",
+        "source_priority": 4,
+        "category": "event_planning",
+        "city": None,
+    },
+    "Safe_and_legal_event_guidance.pdf": {
+        "doc_id": "safe_and_legal_event_guidance",
+        "title": "Safe and Legal Event Guidance",
+        "geographic_scope": "International",
+        "scope_level": "international",
+        "source_priority": 4,
+        "category": "event_planning",
+        "city": None,
+    },
+    "monash-event-guide.pdf": {
+        "doc_id": "monash_event_guide",
+        "title": "Monash Event Guide",
+        "geographic_scope": "International",
+        "scope_level": "international",
+        "source_priority": 4,
+        "category": "event_planning",
+        "city": None,
+    },
+    # 02_food_catering
+    "Guidance_Document_Catering_Sector_19_01_2018(4).pdf": {
+        "doc_id": "fssai_guidance_document_catering_sector",
+        "title": "FSSAI Guidance Document for Food Safety in Catering Sector",
+        "geographic_scope": "India",
+        "scope_level": "national",
+        "source_priority": 3,
+        "category": "catering",
+        "city": None,
+    },
+    # 03_travel_reimbursement
+    "Employee Travel Reimbursement Guide _ Financial Affairs.pdf": {
+        "doc_id": "employee_travel_reimbursement_guide",
+        "title": "Employee Travel Reimbursement Guide",
+        "geographic_scope": "Corporate / General",
+        "scope_level": "corporate",
+        "source_priority": 1,
+        "category": "travel_reimbursement",
+        "city": None,
+    },
+    "Small Business International Travel Resource Travel Planner.pdf": {
+        "doc_id": "small_business_international_travel_planner",
+        "title": "Small Business International Travel Resource Travel Planner",
+        "geographic_scope": "International",
+        "scope_level": "international",
+        "source_priority": 2,
+        "category": "travel_reimbursement",
+        "city": None,
+    },
+    # 04_pune_venues
+    "Crowne Plaza Pune City Centre - Hotel Meeting Rooms for Rent.pdf": {
+        "doc_id": "crowne_plaza_pune_city_centre",
+        "title": "Crowne Plaza Pune City Centre - Hotel Meeting Rooms for Rent",
+        "geographic_scope": "Pune, Maharashtra, India",
+        "scope_level": "city",
+        "source_priority": 1,
+        "category": "pune_venue",
+        "city": "Pune",
+    },
+    "DES _ Venue Booking.pdf": {
+        "doc_id": "des_venue_booking",
+        "title": "DES Venue Booking Details",
+        "geographic_scope": "Pune, Maharashtra, India",
+        "scope_level": "city",
+        "source_priority": 1,
+        "category": "pune_venue",
+        "city": "Pune",
+    },
+    "DES _ Venue Booking1.pdf": {
+        "doc_id": "des_venue_booking_1",
+        "title": "DES Venue Booking Terms and Guidelines",
+        "geographic_scope": "Pune, Maharashtra, India",
+        "scope_level": "city",
+        "source_priority": 1,
+        "category": "pune_venue",
+        "city": "Pune",
+    },
+    "Event & Meeting Spaces _ Fairfield Pune Kharadi.pdf": {
+        "doc_id": "fairfield_pune_kharadi",
+        "title": "Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi",
+        "geographic_scope": "Pune, Maharashtra, India",
+        "scope_level": "city",
+        "source_priority": 1,
+        "category": "pune_venue",
+        "city": "Pune",
+    },
+    "Event in Pune - DoubleTree by Hilton Pune - Meetings and Events.pdf": {
+        "doc_id": "doubletree_hilton_pune",
+        "title": "Event in Pune - DoubleTree by Hilton Pune Meetings and Events",
+        "geographic_scope": "Pune, Maharashtra, India",
+        "scope_level": "city",
+        "source_priority": 1,
+        "category": "pune_venue",
+        "city": "Pune",
+    },
+    "Hall Booking – DCCIA Pune.pdf": {
+        "doc_id": "dccia_pune_hall_booking",
+        "title": "Hall Booking - DCCIA Pune",
+        "geographic_scope": "Pune, Maharashtra, India",
+        "scope_level": "city",
+        "source_priority": 1,
+        "category": "pune_venue",
+        "city": "Pune",
+    },
+    "Premium Meetings and Conference Halls Pune _ Hyatt Regency Pune.pdf": {
+        "doc_id": "hyatt_regency_pune",
+        "title": "Premium Meetings and Conference Halls - Hyatt Regency Pune",
+        "geographic_scope": "Pune, Maharashtra, India",
+        "scope_level": "city",
+        "source_priority": 1,
+        "category": "pune_venue",
+        "city": "Pune",
+    },
+    # 05_india_general
+    "Tourist Guide_CTS2.0_NSQF-3 (2).pdf": {
+        "doc_id": "tourist_guide_cts_nsqf",
+        "title": "Tourist Guide CTS 2.0 NSQF Level 3",
+        "geographic_scope": "India",
+        "scope_level": "national",
+        "source_priority": 3,
+        "category": "india_general",
+        "city": None,
+    },
+    # 06_international_general
+    "Business Travel and Work Abroad.pdf": {
+        "doc_id": "business_travel_and_work_abroad",
+        "title": "Business Travel and Work Abroad Guide",
+        "geographic_scope": "International",
+        "scope_level": "international",
+        "source_priority": 4,
+        "category": "international_general",
+        "city": None,
+    },
+}
 
 
 @dataclass
@@ -75,21 +285,35 @@ class DocumentChunk:
     section_id: Optional[str]
     section_title: Optional[str]
     source_file: str
+    source_path: str
+    source_type: str
+    category: str
+    page_number: int
+    geographic_scope: str
+    scope_level: str
+    source_priority: int
     text: str
     token_count: int
     char_start: int
     char_end: int
     section: Optional[str] = None
+    document_title: Optional[str] = None
+    city: Optional[str] = None
 
     def __post_init__(self):
         if self.section is None:
             self.section = self.section_title
+        if self.document_title is None:
+            self.document_title = self.title
+        if self.city is None and self.category == "pune_venue":
+            self.city = "Pune"
 
 
 class CorpusIndexBuilder:
     """
-    Orchestrates document parsing, chunking, metadata tracking, BM25 indexing,
-    and dense embedding generation.
+    Orchestrates recursive PDF discovery, page-by-page text extraction,
+    geographic-scope & category metadata tagging, section-aware chunking,
+    BM25 indexing, and dense embedding generation.
     """
 
     def __init__(
@@ -108,105 +332,185 @@ class CorpusIndexBuilder:
         self.chunk_overlap = chunk_overlap
         self.embedding_model_name = embedding_model_name
         self.embedding_dimension = embedding_dimension
-        self.api_key = api_key or getattr(settings, "llm_api_key", "") or os.getenv("GEMINI_API_KEY", "") or os.getenv("GOOGLE_API_KEY", "") or os.getenv("LLM_API_KEY", "")
+        self.api_key = (
+            api_key
+            or getattr(settings, "llm_api_key", "")
+            or os.getenv("GEMINI_API_KEY", "")
+            or os.getenv("GOOGLE_API_KEY", "")
+            or os.getenv("LLM_API_KEY", "")
+        )
+        self.extraction_warnings: List[str] = []
 
     def _tokenize(self, text: str) -> List[str]:
         """Simple regex tokenizer for BM25 indexing and query matching."""
         return re.findall(r"\w+", text.lower())
 
+    def _derive_doc_metadata(self, file_path: Path) -> Dict[str, Any]:
+        """Derives scope, category, and city metadata from registry or heuristics."""
+        file_name = file_path.name
+        parent_name = file_path.parent.name
+        normalized_category = CATEGORY_ALIAS_MAP.get(parent_name, parent_name)
+
+        if file_name in DOCUMENT_REGISTRY:
+            meta = dict(DOCUMENT_REGISTRY[file_name])
+            if "category" not in meta or meta["category"].startswith("0"):
+                meta["category"] = normalized_category
+            if "city" not in meta:
+                meta["city"] = "Pune" if meta.get("category") == "pune_venue" else None
+            return meta
+
+        stem = file_path.stem
+        doc_id = re.sub(r"[^\w]+", "_", stem).strip("_").lower()
+        title = stem.replace("_", " ").replace("-", " ").title()
+
+        city = "Pune" if normalized_category == "pune_venue" or "pune" in stem.lower() else None
+        geo_scope = "Pune, Maharashtra, India" if city == "Pune" else ("India" if "india" in normalized_category else "International")
+        scope_level = "city" if city == "Pune" else ("national" if geo_scope == "India" else "international")
+        priority = 1 if city == "Pune" else (3 if geo_scope == "India" else 4)
+
+        return {
+            "doc_id": doc_id,
+            "title": title,
+            "geographic_scope": geo_scope,
+            "scope_level": scope_level,
+            "source_priority": priority,
+            "category": normalized_category,
+            "city": city,
+        }
+
+    def _extract_text_from_pdf(self, file_path: Path) -> List[Dict[str, Any]]:
+        """
+        Extracts text page-by-page from a PDF file using PyMuPDF (with fallback to pypdf).
+        Preserves page numbers (1-indexed) and detects section headings where reasonably possible.
+        """
+        pages: List[Dict[str, Any]] = []
+
+        if pymupdf is not None:
+            try:
+                doc: Any = pymupdf.open(str(file_path))
+                for page_idx, page in enumerate(doc, start=1):
+                    text = page.get_text() or ""
+                    clean_text = text.strip()
+                    if clean_text:
+                        lines = [ln.strip() for ln in clean_text.split("\n") if ln.strip()]
+                        detected_heading = None
+                        if lines:
+                            first_line = lines[0]
+                            if len(first_line) < 120 and (first_line.isupper() or re.match(r"^(?:Section|Chapter|Part|\d+\.)", first_line, re.IGNORECASE)):
+                                detected_heading = first_line
+
+                        pages.append({
+                            "page_number": page_idx,
+                            "text": clean_text,
+                            "detected_heading": detected_heading,
+                        })
+                return pages
+            except Exception as e:
+                self.extraction_warnings.append(f"PyMuPDF failed for '{file_path.name}': {e}. Trying pypdf fallback.")
+
+        # Fallback to pypdf
+        if pypdf is not None:
+            try:
+                reader = pypdf.PdfReader(str(file_path))
+                for page_idx, page in enumerate(reader.pages, start=1):
+                    text = page.extract_text() or ""
+                    clean_text = text.strip()
+                    if clean_text:
+                        lines = [ln.strip() for ln in clean_text.split("\n") if ln.strip()]
+                        detected_heading = lines[0] if lines and len(lines[0]) < 120 and (lines[0].isupper() or re.match(r"^(?:Section|Chapter|Part|\d+\.)", lines[0], re.IGNORECASE)) else None
+                        pages.append({
+                            "page_number": page_idx,
+                            "text": clean_text,
+                            "detected_heading": detected_heading,
+                        })
+                return pages
+            except Exception as e:
+                self.extraction_warnings.append(f"pypdf failed for '{file_path.name}': {e}.")
+
+        return pages
+
     def load_raw_documents(self) -> List[Dict[str, Any]]:
         """
-        Reads and extracts raw text and section structures from files in `self.raw_docs_dir`.
-        Supports .md and .txt files without requiring an external LLM parser.
+        Discovers PDF documents in the 6 active folders under `self.raw_docs_dir` and extracts text page-by-page.
+        Excludes legacy folders and deprecated documents.
         """
         if not self.raw_docs_dir.exists():
             raise FileNotFoundError(f"Corpus directory not found: {self.raw_docs_dir}")
 
+        # Filter PDFs only from active folders and non-excluded files
+        pdf_paths: List[Path] = []
+        for p in sorted(self.raw_docs_dir.rglob("*.pdf")):
+            if not p.is_file() or p.name.startswith("."):
+                continue
+            parent_name = p.parent.name
+            if parent_name in EXCLUDED_FOLDERS:
+                continue
+            if parent_name not in CATEGORY_ALIAS_MAP:
+                continue
+            if p.name in EXCLUDED_FILENAMES or "model-building-bye-laws" in p.name.lower() or "model_building_bye_laws" in p.name.lower():
+                continue
+            pdf_paths.append(p)
+
         documents: List[Dict[str, Any]] = []
-        supported_extensions = {".md", ".txt"}
+        seen_doc_ids: Set[str] = set()
 
-        # Collect and sort all supported raw document files
-        file_paths = sorted([
-            p for p in self.raw_docs_dir.iterdir()
-            if p.is_file() and p.suffix.lower() in supported_extensions and not p.name.startswith(".")
-        ])
+        for file_path in pdf_paths:
+            meta = self._derive_doc_metadata(file_path)
+            doc_id = meta["doc_id"]
+            if doc_id in seen_doc_ids:
+                doc_id = f"{doc_id}_{meta['category']}"
+            seen_doc_ids.add(doc_id)
 
-        for file_path in file_paths:
-            content = file_path.read_text(encoding="utf-8").strip()
-            if not content:
+            extracted_pages = self._extract_text_from_pdf(file_path)
+            if not extracted_pages:
+                warn_msg = f"PDF '{file_path.relative_to(self.raw_docs_dir)}' has 0 extractable text characters (scanned image or unreadable). Skipped."
+                self.extraction_warnings.append(warn_msg)
+                print(f"[WARN] {warn_msg}")
                 continue
 
-            doc_id = file_path.stem
-            source_file = file_path.name
-
-            # Extract Document Title from first '# ' heading or fallback to formatted filename
-            title = doc_id.replace("_", " ").title()
-            title_match = re.search(r"^#\s+(.+)$", content, re.MULTILINE)
-            if title_match:
-                title = title_match.group(1).strip()
-
-            # Parse sections delineated by '## ' headings
-            section_pattern = re.compile(r"^##\s+(.+)$", re.MULTILINE)
-            section_matches = list(section_pattern.finditer(content))
-
+            # Build sections from pages
             sections: List[Dict[str, Any]] = []
+            current_heading = meta["title"]
 
-            if not section_matches:
-                # No '## ' sub-sections found; treat entire document as one section
-                body_text = content
-                if title_match:
-                    body_text = content[title_match.end():].strip()
+            for p_info in extracted_pages:
+                p_num = p_info["page_number"]
+                p_text = p_info["text"]
+                if p_info["detected_heading"]:
+                    current_heading = p_info["detected_heading"]
+
                 sections.append({
-                    "section_id": "sec_01",
-                    "section_title": title,
-                    "text": body_text,
+                    "section_id": f"p{p_num:03d}",
+                    "section_title": current_heading,
+                    "page_number": p_num,
+                    "text": p_text,
                     "char_start": 0,
-                    "char_end": len(content)
+                    "char_end": len(p_text),
                 })
-            else:
-                # Check for any introductory text before first '## '
-                first_match = section_matches[0]
-                intro_text = content[:first_match.start()].strip()
-                if title_match:
-                    intro_text = content[title_match.end():first_match.start()].strip()
-                if intro_text:
-                    sections.append({
-                        "section_id": "sec_00",
-                        "section_title": "Overview",
-                        "text": intro_text,
-                        "char_start": 0,
-                        "char_end": first_match.start()
-                    })
 
-                for idx, match in enumerate(section_matches, start=1):
-                    sec_title = match.group(1).strip()
-                    sec_start = match.end()
-                    sec_end = section_matches[idx].start() if idx < len(section_matches) else len(content)
-                    sec_text = content[sec_start:sec_end].strip()
-
-                    if sec_text:
-                        sections.append({
-                            "section_id": f"sec_{idx:02d}",
-                            "section_title": sec_title,
-                            "text": sec_text,
-                            "char_start": match.start(),
-                            "char_end": sec_end
-                        })
+            full_text = "\n\n".join(p["text"] for p in extracted_pages)
 
             documents.append({
                 "doc_id": doc_id,
-                "title": title,
-                "source_file": source_file,
-                "full_text": content,
-                "sections": sections
+                "title": meta["title"],
+                "source_file": file_path.name,
+                "source_path": str(file_path.relative_to(self.raw_docs_dir)),
+                "source_type": "pdf",
+                "category": meta["category"],
+                "city": meta.get("city"),
+                "geographic_scope": meta["geographic_scope"],
+                "scope_level": meta["scope_level"],
+                "source_priority": meta["source_priority"],
+                "pages_count": len(extracted_pages),
+                "full_text": full_text,
+                "sections": sections,
             })
 
         return documents
 
     def chunk_documents(self, documents: List[Dict[str, Any]]) -> List[DocumentChunk]:
         """
-        Splits documents into granular, section-aware chunks while preserving sentence boundaries
-        and provenance metadata.
+        Splits document pages/sections into granular chunks while strictly preserving
+        page-number and document provenance metadata.
         """
         chunks: List[DocumentChunk] = []
 
@@ -214,21 +518,28 @@ class CorpusIndexBuilder:
             doc_id = doc["doc_id"]
             title = doc["title"]
             source_file = doc["source_file"]
-            chunk_counter = 1
+            source_path = doc["source_path"]
+            source_type = doc["source_type"]
+            category = doc["category"]
+            city = doc.get("city")
+            geo_scope = doc["geographic_scope"]
+            scope_level = doc["scope_level"]
+            source_priority = doc["source_priority"]
 
             for sec in doc["sections"]:
                 section_id = sec["section_id"]
                 section_title = sec["section_title"]
+                page_number = sec["page_number"]
                 sec_text = sec["text"]
-                sec_char_start = sec["char_start"]
 
-                # Split section text into sentences / paragraphs without breaking mid-sentence
+                # Split section text into sentences without breaking sentences
                 sentences = [s.strip() for s in re.split(r"(?<=[.?!])\s+", sec_text) if s.strip()]
                 if not sentences:
                     sentences = [sec_text]
 
                 current_chunk_sentences: List[str] = []
                 current_word_count = 0
+                chunk_index = 1
 
                 for sentence in sentences:
                     sentence_words = len(sentence.split())
@@ -237,10 +548,11 @@ class CorpusIndexBuilder:
                         # Flush current chunk
                         chunk_text = " ".join(current_chunk_sentences).strip()
                         if chunk_text:
-                            chunk_id = f"{doc_id}_{chunk_counter:02d}"
+                            chunk_id = f"{doc_id}_p{page_number:03d}_{chunk_index:02d}"
                             token_count = len(chunk_text.split())
-                            char_start_in_sec = sec_text.find(current_chunk_sentences[0])
-                            char_start = sec_char_start + (char_start_in_sec if char_start_in_sec >= 0 else 0)
+                            char_start = sec_text.find(current_chunk_sentences[0])
+                            if char_start < 0:
+                                char_start = 0
                             char_end = char_start + len(chunk_text)
 
                             chunks.append(DocumentChunk(
@@ -250,15 +562,24 @@ class CorpusIndexBuilder:
                                 section_id=section_id,
                                 section_title=section_title,
                                 source_file=source_file,
+                                source_path=source_path,
+                                source_type=source_type,
+                                category=category,
+                                page_number=page_number,
+                                geographic_scope=geo_scope,
+                                scope_level=scope_level,
+                                source_priority=source_priority,
                                 text=chunk_text,
                                 token_count=token_count,
                                 char_start=char_start,
                                 char_end=char_end,
-                                section=section_title
+                                section=section_title,
+                                document_title=title,
+                                city=city,
                             ))
-                            chunk_counter += 1
+                            chunk_index += 1
 
-                        # Compute overlap sentences for sliding window
+                        # Overlap sliding window
                         overlap_sentences: List[str] = []
                         overlap_words = 0
                         for s in reversed(current_chunk_sentences):
@@ -278,10 +599,11 @@ class CorpusIndexBuilder:
                 if current_chunk_sentences:
                     chunk_text = " ".join(current_chunk_sentences).strip()
                     if chunk_text:
-                        chunk_id = f"{doc_id}_{chunk_counter:02d}"
+                        chunk_id = f"{doc_id}_p{page_number:03d}_{chunk_index:02d}"
                         token_count = len(chunk_text.split())
-                        char_start_in_sec = sec_text.find(current_chunk_sentences[0])
-                        char_start = sec_char_start + (char_start_in_sec if char_start_in_sec >= 0 else 0)
+                        char_start = sec_text.find(current_chunk_sentences[0])
+                        if char_start < 0:
+                            char_start = 0
                         char_end = char_start + len(chunk_text)
 
                         chunks.append(DocumentChunk(
@@ -291,24 +613,33 @@ class CorpusIndexBuilder:
                             section_id=section_id,
                             section_title=section_title,
                             source_file=source_file,
+                            source_path=source_path,
+                            source_type=source_type,
+                            category=category,
+                            page_number=page_number,
+                            geographic_scope=geo_scope,
+                            scope_level=scope_level,
+                            source_priority=source_priority,
                             text=chunk_text,
                             token_count=token_count,
                             char_start=char_start,
                             char_end=char_end,
-                            section=section_title
+                            section=section_title,
+                            document_title=title,
+                            city=city,
                         ))
-                        chunk_counter += 1
 
         return chunks
 
     def build_bm25_index(self, chunks: List[DocumentChunk]) -> Any:
-        """
-        Tokenizes chunk texts and constructs a BM25 sparse retrieval index.
-        """
+        """Tokenizes chunk texts and constructs a BM25 sparse retrieval index with title, scope, city, and category context."""
         if BM25Okapi is None:
             raise ImportError("rank-bm25 is required for BM25 indexing. Install via pip install rank-bm25.")
 
-        tokenized_corpus = [self._tokenize(chunk.text) for chunk in chunks]
+        tokenized_corpus = [
+            self._tokenize(f"{chunk.title} {chunk.category} {chunk.city or ''} {chunk.geographic_scope} {chunk.section_title or ''} {chunk.text}")
+            for chunk in chunks
+        ]
         bm25 = BM25Okapi(tokenized_corpus)
         return bm25
 
@@ -321,7 +652,6 @@ class CorpusIndexBuilder:
         from sklearn.feature_extraction.text import HashingVectorizer
         from sklearn.preprocessing import normalize
 
-        # Hash words and character n-grams into the target embedding dimension
         vectorizer = HashingVectorizer(
             n_features=self.embedding_dimension,
             alternate_sign=True,
@@ -332,26 +662,22 @@ class CorpusIndexBuilder:
         sparse_mat: Any = vectorizer.transform(texts)
         dense_mat = sparse_mat.toarray().astype(np.float32)
 
-        # L2-normalize vectors for cosine similarity
-        normalized_mat = normalize(dense_mat, norm="l2", axis=1).astype(np.float32)
+        normalized_mat = cast(Any, normalize(dense_mat, norm="l2", axis=1)).astype(np.float32)
         return normalized_mat
 
     def build_dense_embeddings(self, chunks: List[DocumentChunk]) -> np.ndarray:
-        """
-        Generates dense vector embeddings for all chunk texts.
-        Uses Google GenAI API (text-embedding-004) when an API key is configured,
-        with seamless local fallback if running offline or in mock environments.
-        """
-        texts = [chunk.text for chunk in chunks]
+        """Generates dense vector embeddings for all chunk texts with title, city, category, and scope context."""
+        texts = [
+            f"{chunk.title} [{chunk.category}] ({chunk.city or chunk.geographic_scope}) {chunk.section_title or ''}: {chunk.text}"
+            for chunk in chunks
+        ]
         if not texts:
             return np.empty((0, self.embedding_dimension), dtype=np.float32)
 
-        # Attempt to use Google GenAI embedding if credentials are provided
         if self.api_key and self.api_key.strip():
             try:
                 from google import genai
                 client = genai.Client(api_key=self.api_key)
-                
                 all_embeddings: List[List[float]] = []
                 batch_size = 50
 
@@ -374,7 +700,6 @@ class CorpusIndexBuilder:
             except Exception as e:
                 print(f"[WARN] Google GenAI embedding failed ({e}). Falling back to local dense vectorizer.")
 
-        # Local deterministic fallback
         self.used_embedding_backend = "local"
         return self._generate_local_deterministic_embeddings(texts)
 
@@ -384,9 +709,7 @@ class CorpusIndexBuilder:
         bm25_index: Any,
         embeddings: np.ndarray,
     ) -> None:
-        """
-        Persists chunk metadata, BM25 index, and dense embeddings to the `data/` directory.
-        """
+        """Persists chunk metadata, BM25 index, dense embeddings, and manifest."""
         self.output_data_dir.mkdir(parents=True, exist_ok=True)
 
         # 1. Save metadata JSON
@@ -417,32 +740,37 @@ class CorpusIndexBuilder:
             json.dump(manifest, f, indent=2)
 
     def run(self) -> Dict[str, Any]:
-        """
-        Executes the end-to-end corpus indexing pipeline and outputs validation statistics.
-        """
-        print(f"=== Starting Corpus Indexing Pipeline ===")
+        """Executes the end-to-end corpus indexing pipeline and outputs validation statistics."""
+        print(f"=== Starting Active PDF Corpus Indexing Pipeline ===")
         print(f"Source Directory: {self.raw_docs_dir.resolve()}")
         print(f"Target Directory: {self.output_data_dir.resolve()}")
 
         # 1. Load documents
         documents = self.load_raw_documents()
         total_sections = sum(len(doc["sections"]) for doc in documents)
+        total_pages = sum(doc["pages_count"] for doc in documents)
         print(f"Documents loaded: {len(documents)}")
-        print(f"Sections extracted: {total_sections}")
+        print(f"Total pages extracted: {total_pages}")
+        print(f"Total sections extracted: {total_sections}")
 
         # 2. Chunk documents
         chunks = self.chunk_documents(documents)
         print(f"Chunks created: {len(chunks)}")
 
-        # Validation assertions
         assert len(chunks) > 0, "No chunks generated from raw documents."
         chunk_ids = [c.chunk_id for c in chunks]
         assert len(chunk_ids) == len(set(chunk_ids)), "Duplicate chunk IDs detected."
+
         for c in chunks:
             assert c.doc_id, f"Chunk {c.chunk_id} missing doc_id"
             assert c.title, f"Chunk {c.chunk_id} missing title"
             assert c.section_title or c.section, f"Chunk {c.chunk_id} missing section"
             assert c.source_file, f"Chunk {c.chunk_id} missing source_file"
+            assert c.category, f"Chunk {c.chunk_id} missing category"
+            assert c.page_number > 0, f"Chunk {c.chunk_id} has invalid page_number {c.page_number}"
+            assert c.geographic_scope, f"Chunk {c.chunk_id} missing geographic_scope"
+            assert c.scope_level, f"Chunk {c.chunk_id} missing scope_level"
+            assert c.source_priority in {1, 2, 3, 4}, f"Chunk {c.chunk_id} invalid source_priority {c.source_priority}"
             assert c.text.strip(), f"Chunk {c.chunk_id} has empty text"
 
         # 3. Build BM25 sparse index
@@ -452,23 +780,62 @@ class CorpusIndexBuilder:
 
         # 4. Generate Dense vector embeddings
         embeddings = self.build_dense_embeddings(chunks)
-        print(f"Embeddings generated: {embeddings.shape[0]}")
-        print(f"Dense index size: {embeddings.shape} (float32)")
+        print(f"Dense index shape: {embeddings.shape} (float32)")
         assert embeddings.shape[0] == len(chunks), "Embedding rows do not match chunk count."
         assert embeddings.shape[1] == self.embedding_dimension, f"Embedding dimension {embeddings.shape[1]} != {self.embedding_dimension}"
 
         # 5. Persist indices and metadata
         self.save_indices(chunks, bm25_index, embeddings)
-        print(f"Index build completed successfully.")
-        print(f"==========================================")
+
+        active_folders_list = [
+            "01_event_planning",
+            "02_food_catering",
+            "03_travel_reimbursement",
+            "04_pune_venues",
+            "05_india_general",
+            "06_international_general",
+        ]
+        excluded_folders_list = [
+            "02_crowd_management",
+            "03_safety_emergency",
+            "04_event_permits_compliance",
+            "05_accessibility",
+        ]
+
+        alignment_status = (
+            "ALIGNED (metadata count == BM25 count == dense count)"
+            if len(chunks) == bm25_index.corpus_size == embeddings.shape[0]
+            else "MISALIGNED"
+        )
+
+        print("\n" + "=" * 65)
+        print("CONCISE FINAL CORPUS REBUILD REPORT")
+        print("=" * 65)
+        print(f"Active Folders:           {', '.join(active_folders_list)}")
+        print(f"Excluded Folders:         {', '.join(excluded_folders_list)}")
+        print(f"Source Documents:         {len(documents)}")
+        print(f"Total Chunks:             {len(chunks)}")
+        print(f"Dense Embedding Shape:    {embeddings.shape}")
+        print(f"Alignment Status:         {alignment_status}")
+        print(f"Extraction Failures:      {len(self.extraction_warnings)}")
+        if self.extraction_warnings:
+            for w in self.extraction_warnings:
+                print(f"  - {w}")
+        print("=" * 65 + "\n")
 
         return {
+            "active_folders": active_folders_list,
+            "excluded_folders": excluded_folders_list,
             "documents_loaded": len(documents),
+            "total_pages": total_pages,
             "sections_extracted": total_sections,
             "chunks_created": len(chunks),
             "embeddings_generated": embeddings.shape[0],
             "dense_index_shape": list(embeddings.shape),
             "bm25_documents": bm25_index.corpus_size,
+            "alignment_status": alignment_status,
+            "extraction_failures": len(self.extraction_warnings),
+            "warnings": self.extraction_warnings,
         }
 
 
@@ -482,4 +849,3 @@ if __name__ == "__main__":
         embedding_dimension=settings.embedding_dimension,
     )
     builder.run()
-

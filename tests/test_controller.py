@@ -1,3 +1,10 @@
+"""
+Validates the Two-Tier Controller (T0 stability gate & T1 intent routing) in Streaming Live RAG.
+Ensures partial streaming utterances are suppressed/held without premature retrieval,
+stable queries trigger multi-intent decomposition, and conversational turns bypass retrieval.
+Demonstrates: Two-tier latency gating, intent decomposition, and no-retrieval conversational routing.
+"""
+
 import os
 import sys
 import asyncio

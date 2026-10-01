@@ -1,0 +1,888 @@
+{
+  "demo1_t1": {
+    "query": "Summarize the travel reimbursement rule for an employee trip.",
+    "session_id": "d1",
+    "events": [
+      {
+        "event": "transcript",
+        "session_id": "d1",
+        "text": "Summarize the travel reimbursement rule for an employee trip.",
+        "is_final": true
+      },
+      {
+        "event": "controller",
+        "session_id": "d1",
+        "t0_stable": true,
+        "should_retrieve": true,
+        "is_refine": false,
+        "refinement_type": "none",
+        "intent_type": "INFORMATION_LOOKUP",
+        "is_supersession": false,
+        "is_removal": false,
+        "is_continuation": false,
+        "sub_queries": [
+          "Summarize the travel reimbursement rule for an employee trip."
+        ],
+        "reasoning": "Corpus query identified as INFORMATION_LOOKUP. Decomposed into 1 sub-queries.",
+        "latency_ms": 2.841740002622828,
+        "is_final": true
+      },
+      {
+        "event": "retrieval",
+        "session_id": "d1",
+        "sub_queries": [
+          "Summarize the travel reimbursement rule for an employee trip."
+        ],
+        "is_refinement": false,
+        "refinement_type": "none",
+        "evidence_count": 4,
+        "gate_status": "supported",
+        "should_synthesize": true,
+        "chunks": [
+          {
+            "chunk_id": "employee_travel_reimbursement_guide_p001_01",
+            "doc_id": "employee_travel_reimbursement_guide",
+            "section": "Employee Travel Reimbursement Guide",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "small_business_international_travel_planner_p017_01",
+            "doc_id": "small_business_international_travel_planner",
+            "section": "PART 2: TRAVEL PLANNING TOOLS",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "small_business_international_travel_planner_p005_01",
+            "doc_id": "small_business_international_travel_planner",
+            "section": "SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "small_business_international_travel_planner_p018_01",
+            "doc_id": "small_business_international_travel_planner",
+            "section": "PART 2: TRAVEL PLANNING TOOLS",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          }
+        ],
+        "latency_ms": 2034.8787820003054,
+        "is_final": true
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 1,
+        "text": "All Procedures - Employee Travel Reimbursement Guide\nTraveling\n Travel Training\n Traveling\nEmployee Travel Reimbursement Guide\nThis guide provides a comprehensive overview of required policies and procedures that\nmust be followed to request and receive reimbursement for an employee traveling on\nbehalf of UAB.",
+        "cites": [
+          "[DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 1,
+        "status": "SUPPORTED",
+        "text": "All Procedures - Employee Travel Reimbursement Guide\nTraveling\n Travel Training\n Traveling\nEmployee Travel Reimbursement Guide\nThis guide provides a comprehensive overview of required policies and procedures that\nmust be followed to request and receive reimbursement for an employee traveling on\nbehalf of UAB.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]"
+        ],
+        "latency_ms": 0.5826019987580366
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 2,
+        "text": "Travel Planner \u2014 Part 2  |  13\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nEmployer Task Timeline\nThis task timeline provides a process for thinking about and planning your employee\u2019s safe and healthy  \ntravel.",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 2,
+        "status": "SUPPORTED",
+        "text": "Travel Planner \u2014 Part 2  |  13\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nEmployer Task Timeline\nThis task timeline provides a process for thinking about and planning your employee\u2019s safe and healthy  \ntravel.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]"
+        ],
+        "latency_ms": 0.49624399980530143
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 3,
+        "text": "Travel Planner \u2014 Part 1  |  1\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nTRAVEL PLANNER\nPart 1: Assessments and Action Planning for Pre-travel,  \nOn-travel, and Post-travel\nPart 1 provides a checklist for planning at each of the three travel stages in three critical areas: job, location, and \npersonal.",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 3,
+        "status": "SUPPORTED",
+        "text": "Travel Planner \u2014 Part 1  |  1\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nTRAVEL PLANNER\nPart 1: Assessments and Action Planning for Pre-travel,  \nOn-travel, and Post-travel\nPart 1 provides a checklist for planning at each of the three travel stages in three critical areas: job, location, and \npersonal.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]"
+        ],
+        "latency_ms": 0.4359619997558184
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 4,
+        "text": "|  Travel Planner \u2014 Part 2\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nTimeline\nWork Travel Planning Tasks \n\u0003\n\u0086\n \n2.2 Meet with your employee to discuss progress on the Small Business \nInternational Work Travel Planner to meet critical deadlines.",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 4,
+        "status": "SUPPORTED",
+        "text": "|  Travel Planner \u2014 Part 2\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nTimeline\nWork Travel Planning Tasks \n\u0003\n\u0086\n \n2.2 Meet with your employee to discuss progress on the Small Business \nInternational Work Travel Planner to meet critical deadlines.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]"
+        ],
+        "latency_ms": 0.4817510016437154
+      },
+      {
+        "event": "answer",
+        "session_id": "d1",
+        "answer_version": 1,
+        "answer": "- All Procedures - Employee Travel Reimbursement Guide\nTraveling\n Travel Training\n Traveling\nEmployee Travel Reimbursement Guide\nThis guide provides a comprehensive overview of required policies and procedures that\nmust be followed to request and receive reimbursement for an employee traveling on\nbehalf of UAB. [DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]\n- Travel Planner \u2014 Part 2  |  13\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nEmployer Task Timeline\nThis task timeline provides a process for thinking about and planning your employee\u2019s safe and healthy  \ntravel. [DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]\n- Travel Planner \u2014 Part 1  |  1\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nTRAVEL PLANNER\nPart 1: Assessments and Action Planning for Pre-travel,  \nOn-travel, and Post-travel\nPart 1 provides a checklist for planning at each of the three travel stages in three critical areas: job, location, and \npersonal. [DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]\n- |  Travel Planner \u2014 Part 2\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nTimeline\nWork Travel Planning Tasks \n\u0003\n\u0086\n \n2.2 Meet with your employee to discuss progress on the Small Business \nInternational Work Travel Planner to meet critical deadlines. [DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]\n\n*(Answer Version: v1)*",
+        "citations": [
+          "[DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]",
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]",
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]",
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]"
+        ],
+        "uncertainty": [],
+        "is_refinement": false,
+        "total_latency_ms": 2045.7525769998028
+      }
+    ]
+  },
+  "demo1_t2": {
+    "query": "The trip was international and the booking was made after travel.",
+    "session_id": "d1",
+    "events": [
+      {
+        "event": "transcript",
+        "session_id": "d1",
+        "text": "The trip was international and the booking was made after travel.",
+        "is_final": true
+      },
+      {
+        "event": "controller",
+        "session_id": "d1",
+        "t0_stable": true,
+        "should_retrieve": true,
+        "is_refine": false,
+        "refinement_type": "additive",
+        "intent_type": "INFORMATION_LOOKUP",
+        "is_supersession": false,
+        "is_removal": false,
+        "is_continuation": false,
+        "sub_queries": [
+          "The trip was international",
+          "the booking was made after travel."
+        ],
+        "reasoning": "Corpus query identified as INFORMATION_LOOKUP. Decomposed into 2 sub-queries.",
+        "latency_ms": 5.4931589984335005,
+        "is_final": true
+      },
+      {
+        "event": "retrieval",
+        "session_id": "d1",
+        "sub_queries": [
+          "The trip was international",
+          "the booking was made after travel."
+        ],
+        "is_refinement": false,
+        "refinement_type": "additive",
+        "evidence_count": 4,
+        "gate_status": "supported",
+        "should_synthesize": true,
+        "chunks": [
+          {
+            "chunk_id": "wa_events_guidelines_2022_p032_01",
+            "doc_id": "wa_events_guidelines_2022",
+            "section": "B",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "wa_events_guidelines_2022_p020_01",
+            "doc_id": "wa_events_guidelines_2022",
+            "section": "B",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "event_guide_p018_01",
+            "doc_id": "event_guide",
+            "section": "Event Planning Guide",
+            "score": 1.0,
+            "sub_query_id": 1,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "wa_events_guidelines_2022_p002_01",
+            "doc_id": "wa_events_guidelines_2022",
+            "section": "B",
+            "score": 1.0,
+            "sub_query_id": 1,
+            "retrieval_method": "rrf"
+          }
+        ],
+        "latency_ms": 34.086905001458945,
+        "is_final": true
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 1,
+        "text": "All Procedures - Employee Travel Reimbursement Guide\nTraveling\n Travel Training\n Traveling\nEmployee Travel Reimbursement Guide\nThis guide provides a comprehensive overview of required policies and procedures that\nmust be followed to request and receive reimbursement for an employee traveling on\nbehalf of UAB.",
+        "cites": [
+          "[DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 1,
+        "status": "SUPPORTED",
+        "text": "All Procedures - Employee Travel Reimbursement Guide\nTraveling\n Travel Training\n Traveling\nEmployee Travel Reimbursement Guide\nThis guide provides a comprehensive overview of required policies and procedures that\nmust be followed to request and receive reimbursement for an employee traveling on\nbehalf of UAB.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]"
+        ],
+        "latency_ms": 0.3352979983901605
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 2,
+        "text": "Travel Planner \u2014 Part 2  |  13\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nEmployer Task Timeline\nThis task timeline provides a process for thinking about and planning your employee\u2019s safe and healthy  \ntravel.",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 2,
+        "status": "SUPPORTED",
+        "text": "Travel Planner \u2014 Part 2  |  13\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nEmployer Task Timeline\nThis task timeline provides a process for thinking about and planning your employee\u2019s safe and healthy  \ntravel.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]"
+        ],
+        "latency_ms": 0.4501609982980881
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 3,
+        "text": "Travel Planner \u2014 Part 1  |  1\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nTRAVEL PLANNER\nPart 1: Assessments and Action Planning for Pre-travel,  \nOn-travel, and Post-travel\nPart 1 provides a checklist for planning at each of the three travel stages in three critical areas: job, location, and \npersonal.",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 3,
+        "status": "SUPPORTED",
+        "text": "Travel Planner \u2014 Part 1  |  1\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nTRAVEL PLANNER\nPart 1: Assessments and Action Planning for Pre-travel,  \nOn-travel, and Post-travel\nPart 1 provides a checklist for planning at each of the three travel stages in three critical areas: job, location, and \npersonal.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]"
+        ],
+        "latency_ms": 0.41225099994335324
+      },
+      {
+        "event": "claim",
+        "session_id": "d1",
+        "claim_id": 4,
+        "text": "|  Travel Planner \u2014 Part 2\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nTimeline\nWork Travel Planning Tasks \n\u0003\n\u0086\n \n2.2 Meet with your employee to discuss progress on the Small Business \nInternational Work Travel Planner to meet critical deadlines.",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d1",
+        "claim_id": 4,
+        "status": "SUPPORTED",
+        "text": "|  Travel Planner \u2014 Part 2\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nTimeline\nWork Travel Planning Tasks \n\u0003\n\u0086\n \n2.2 Meet with your employee to discuss progress on the Small Business \nInternational Work Travel Planner to meet critical deadlines.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]"
+        ],
+        "latency_ms": 0.41701700320118107
+      },
+      {
+        "event": "answer",
+        "session_id": "d1",
+        "answer_version": 2,
+        "answer": "- All Procedures - Employee Travel Reimbursement Guide\nTraveling\n Travel Training\n Traveling\nEmployee Travel Reimbursement Guide\nThis guide provides a comprehensive overview of required policies and procedures that\nmust be followed to request and receive reimbursement for an employee traveling on\nbehalf of UAB. [DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]\n- Travel Planner \u2014 Part 2  |  13\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nEmployer Task Timeline\nThis task timeline provides a process for thinking about and planning your employee\u2019s safe and healthy  \ntravel. [DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]\n- Travel Planner \u2014 Part 1  |  1\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nTRAVEL PLANNER\nPart 1: Assessments and Action Planning for Pre-travel,  \nOn-travel, and Post-travel\nPart 1 provides a checklist for planning at each of the three travel stages in three critical areas: job, location, and \npersonal. [DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]\n- |  Travel Planner \u2014 Part 2\nSMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE\nEMPLOYER TASK TIMELINE\nTimeline\nWork Travel Planning Tasks \n\u0003\n\u0086\n \n2.2 Meet with your employee to discuss progress on the Small Business \nInternational Work Travel Planner to meet critical deadlines. [DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]\n\n*(Answer Version: v2)*",
+        "citations": [
+          "[DOC: Employee Travel Reimbursement Guide | Section: Employee Travel Reimbursement Guide | Page: 1 | Scope: Corporate / General | Chunk: employee_travel_reimbursement_guide_p001_01]",
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 17 | Scope: International | Chunk: small_business_international_travel_planner_p017_01]",
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: PART 2: TRAVEL PLANNING TOOLS | Page: 18 | Scope: International | Chunk: small_business_international_travel_planner_p018_01]",
+          "[DOC: Small Business International Travel Resource Travel Planner | Section: SMALL BUSINESS INTERNATIONAL TRAVEL RESOURCE | Page: 5 | Scope: International | Chunk: small_business_international_travel_planner_p005_01]"
+        ],
+        "uncertainty": [],
+        "is_refinement": false,
+        "total_latency_ms": 49.210837998543866
+      }
+    ]
+  },
+  "demo2_t1": {
+    "query": "I need to plan a customer workshop in Pune for 30 people.",
+    "session_id": "d2",
+    "events": [
+      {
+        "event": "transcript",
+        "session_id": "d2",
+        "text": "I need to plan a customer workshop in Pune for 30 people.",
+        "is_final": true
+      },
+      {
+        "event": "controller",
+        "session_id": "d2",
+        "t0_stable": true,
+        "should_retrieve": true,
+        "is_refine": false,
+        "refinement_type": "none",
+        "intent_type": "INFORMATION_LOOKUP",
+        "is_supersession": false,
+        "is_removal": false,
+        "is_continuation": false,
+        "sub_queries": [
+          "I need to plan a customer workshop in Pune for 30 people."
+        ],
+        "reasoning": "Corpus query identified as INFORMATION_LOOKUP. Decomposed into 1 sub-queries.",
+        "latency_ms": 0.12916400009999052,
+        "is_final": true
+      },
+      {
+        "event": "retrieval",
+        "session_id": "d2",
+        "sub_queries": [
+          "I need to plan a customer workshop in Pune for 30 people."
+        ],
+        "is_refinement": false,
+        "refinement_type": "none",
+        "evidence_count": 4,
+        "gate_status": "supported",
+        "should_synthesize": true,
+        "chunks": [
+          {
+            "chunk_id": "doubletree_hilton_pune_p002_01",
+            "doc_id": "doubletree_hilton_pune",
+            "section": "Event in Pune - DoubleTree by Hilton Pune Meetings and Events",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "hyatt_regency_pune_p010_01",
+            "doc_id": "hyatt_regency_pune",
+            "section": "ESSENTIALS",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "hyatt_regency_pune_p001_01",
+            "doc_id": "hyatt_regency_pune",
+            "section": "Premium Meetings and Conference Halls - Hyatt Regency Pune",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "fairfield_pune_kharadi_p004_01",
+            "doc_id": "fairfield_pune_kharadi",
+            "section": "EVENTS",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          }
+        ],
+        "latency_ms": 20.80858199769864,
+        "is_final": true
+      },
+      {
+        "event": "claim",
+        "session_id": "d2",
+        "claim_id": 1,
+        "text": "ESSENTIALS\n*Learn which hotels are participating at hyatt.com/standard.",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d2",
+        "claim_id": 1,
+        "status": "SUPPORTED",
+        "text": "ESSENTIALS\n*Learn which hotels are participating at hyatt.com/standard.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]"
+        ],
+        "latency_ms": 0.33365000126650557
+      },
+      {
+        "event": "claim",
+        "session_id": "d2",
+        "claim_id": 2,
+        "text": "Event Spaces\nUnits\nReset Filters\n7 RESULTS\nSPACE SIZE\nCAPACITY\nSORT BY\nMEETINGS & EVENTS\nAt Hyatt Regency Pune & Residences, we blend elegance and functionality to create the perfect backdrop for every\noccasion.",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d2",
+        "claim_id": 2,
+        "status": "SUPPORTED",
+        "text": "Event Spaces\nUnits\nReset Filters\n7 RESULTS\nSPACE SIZE\nCAPACITY\nSORT BY\nMEETINGS & EVENTS\nAt Hyatt Regency Pune & Residences, we blend elegance and functionality to create the perfect backdrop for every\noccasion.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]"
+        ],
+        "latency_ms": 0.34064600185956806
+      },
+      {
+        "event": "claim",
+        "session_id": "d2",
+        "claim_id": 3,
+        "text": "Weddings and Occasions\nCelebrate your big day in our elegant hotel wedding venues near\nViman Nagar, Pune\u200b.",
+        "cites": [
+          "[DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d2",
+        "claim_id": 3,
+        "status": "SUPPORTED",
+        "text": "Weddings and Occasions\nCelebrate your big day in our elegant hotel wedding venues near\nViman Nagar, Pune\u200b.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]"
+        ],
+        "latency_ms": 0.315105000481708
+      },
+      {
+        "event": "answer",
+        "session_id": "d2",
+        "answer_version": 1,
+        "answer": "- ESSENTIALS\n*Learn which hotels are participating at hyatt.com/standard. [DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]\n- Event Spaces\nUnits\nReset Filters\n7 RESULTS\nSPACE SIZE\nCAPACITY\nSORT BY\nMEETINGS & EVENTS\nAt Hyatt Regency Pune & Residences, we blend elegance and functionality to create the perfect backdrop for every\noccasion. [DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]\n- Weddings and Occasions\nCelebrate your big day in our elegant hotel wedding venues near\nViman Nagar, Pune\u200b. [DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]\n\n*(Answer Version: v1)*",
+        "citations": [
+          "[DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]",
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]",
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]"
+        ],
+        "uncertainty": [],
+        "is_refinement": false,
+        "total_latency_ms": 26.535725002759136
+      }
+    ]
+  },
+  "demo2_t2": {
+    "query": "I need the cancellation policy and the catering options.",
+    "session_id": "d2",
+    "events": [
+      {
+        "event": "transcript",
+        "session_id": "d2",
+        "text": "I need the cancellation policy and the catering options.",
+        "is_final": true
+      },
+      {
+        "event": "controller",
+        "session_id": "d2",
+        "t0_stable": true,
+        "should_retrieve": true,
+        "is_refine": false,
+        "refinement_type": "additive",
+        "intent_type": "INFORMATION_LOOKUP",
+        "is_supersession": false,
+        "is_removal": false,
+        "is_continuation": false,
+        "sub_queries": [
+          "I need the cancellation policy",
+          "the catering options."
+        ],
+        "reasoning": "Corpus query identified as INFORMATION_LOOKUP. Decomposed into 2 sub-queries.",
+        "latency_ms": 1.1600070029089693,
+        "is_final": true
+      },
+      {
+        "event": "retrieval",
+        "session_id": "d2",
+        "sub_queries": [
+          "I need the cancellation policy",
+          "the catering options."
+        ],
+        "is_refinement": false,
+        "refinement_type": "additive",
+        "evidence_count": 4,
+        "gate_status": "supported",
+        "should_synthesize": true,
+        "chunks": [
+          {
+            "chunk_id": "des_venue_booking_p001_01",
+            "doc_id": "des_venue_booking",
+            "section": "DES Venue Booking Details",
+            "score": 0.8,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "tourist_guide_cts_nsqf_p004_01",
+            "doc_id": "tourist_guide_cts_nsqf",
+            "section": "TOURIST GUIDE",
+            "score": 0.8,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "fssai_guidance_document_catering_sector_p008_01",
+            "doc_id": "fssai_guidance_document_catering_sector",
+            "section": "FSSAI Guidance Document for Food Safety in Catering Sector",
+            "score": 0.8,
+            "sub_query_id": 1,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "fssai_guidance_document_catering_sector_p012_01",
+            "doc_id": "fssai_guidance_document_catering_sector",
+            "section": "FSSAI Guidance Document for Food Safety in Catering Sector",
+            "score": 0.8,
+            "sub_query_id": 1,
+            "retrieval_method": "rrf"
+          }
+        ],
+        "latency_ms": 29.27376300067408,
+        "is_final": true
+      },
+      {
+        "event": "claim",
+        "session_id": "d2",
+        "claim_id": 1,
+        "text": "ESSENTIALS\n*Learn which hotels are participating at hyatt.com/standard.",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d2",
+        "claim_id": 1,
+        "status": "SUPPORTED",
+        "text": "ESSENTIALS\n*Learn which hotels are participating at hyatt.com/standard.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]"
+        ],
+        "latency_ms": 0.3784239997912664
+      },
+      {
+        "event": "claim",
+        "session_id": "d2",
+        "claim_id": 2,
+        "text": "Event Spaces\nUnits\nReset Filters\n7 RESULTS\nSPACE SIZE\nCAPACITY\nSORT BY\nMEETINGS & EVENTS\nAt Hyatt Regency Pune & Residences, we blend elegance and functionality to create the perfect backdrop for every\noccasion.",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d2",
+        "claim_id": 2,
+        "status": "SUPPORTED",
+        "text": "Event Spaces\nUnits\nReset Filters\n7 RESULTS\nSPACE SIZE\nCAPACITY\nSORT BY\nMEETINGS & EVENTS\nAt Hyatt Regency Pune & Residences, we blend elegance and functionality to create the perfect backdrop for every\noccasion.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]"
+        ],
+        "latency_ms": 0.35420100175542757
+      },
+      {
+        "event": "claim",
+        "session_id": "d2",
+        "claim_id": 3,
+        "text": "Weddings and Occasions\nCelebrate your big day in our elegant hotel wedding venues near\nViman Nagar, Pune\u200b.",
+        "cites": [
+          "[DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d2",
+        "claim_id": 3,
+        "status": "SUPPORTED",
+        "text": "Weddings and Occasions\nCelebrate your big day in our elegant hotel wedding venues near\nViman Nagar, Pune\u200b.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]"
+        ],
+        "latency_ms": 0.3176690006512217
+      },
+      {
+        "event": "claim",
+        "session_id": "d2",
+        "claim_id": 4,
+        "text": "Refund and Cancellation Policy\n#\nCancellation Policy\nDeduction in %\n1\nCancellation Request Made 30 Days Before the Event Date.",
+        "cites": [
+          "[DOC: DES Venue Booking Details | Section: DES Venue Booking Details | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: des_venue_booking_p001_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d2",
+        "claim_id": 4,
+        "status": "SUPPORTED",
+        "text": "Refund and Cancellation Policy\n#\nCancellation Policy\nDeduction in %\n1\nCancellation Request Made 30 Days Before the Event Date.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: DES Venue Booking Details | Section: DES Venue Booking Details | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: des_venue_booking_p001_01]"
+        ],
+        "latency_ms": 0.3246220003347844
+      },
+      {
+        "event": "answer",
+        "session_id": "d2",
+        "answer_version": 2,
+        "answer": "- ESSENTIALS\n*Learn which hotels are participating at hyatt.com/standard. [DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]\n- Event Spaces\nUnits\nReset Filters\n7 RESULTS\nSPACE SIZE\nCAPACITY\nSORT BY\nMEETINGS & EVENTS\nAt Hyatt Regency Pune & Residences, we blend elegance and functionality to create the perfect backdrop for every\noccasion. [DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]\n- Weddings and Occasions\nCelebrate your big day in our elegant hotel wedding venues near\nViman Nagar, Pune\u200b. [DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]\n- Refund and Cancellation Policy\n#\nCancellation Policy\nDeduction in %\n1\nCancellation Request Made 30 Days Before the Event Date. [DOC: DES Venue Booking Details | Section: DES Venue Booking Details | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: des_venue_booking_p001_01]\n\n*(Answer Version: v2)*",
+        "citations": [
+          "[DOC: DES Venue Booking Details | Section: DES Venue Booking Details | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: des_venue_booking_p001_01]",
+          "[DOC: Event & Meeting Spaces - Fairfield by Marriott Pune Kharadi | Section: EVENTS | Page: 4 | Scope: Pune, Maharashtra, India | Chunk: fairfield_pune_kharadi_p004_01]",
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: ESSENTIALS | Page: 10 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p010_01]",
+          "[DOC: Premium Meetings and Conference Halls - Hyatt Regency Pune | Section: Premium Meetings and Conference Halls - Hyatt Regency Pune | Page: 1 | Scope: Pune, Maharashtra, India | Chunk: hyatt_regency_pune_p001_01]"
+        ],
+        "uncertainty": [],
+        "is_refinement": false,
+        "total_latency_ms": 36.229339999408694
+      }
+    ]
+  },
+  "out_of_corpus": {
+    "query": "What is the fire safety procedure for a large crowd?",
+    "session_id": "d3",
+    "events": [
+      {
+        "event": "transcript",
+        "session_id": "d3",
+        "text": "What is the fire safety procedure for a large crowd?",
+        "is_final": true
+      },
+      {
+        "event": "controller",
+        "session_id": "d3",
+        "t0_stable": true,
+        "should_retrieve": true,
+        "is_refine": false,
+        "refinement_type": "none",
+        "intent_type": "REQUIREMENTS",
+        "is_supersession": false,
+        "is_removal": false,
+        "is_continuation": false,
+        "sub_queries": [
+          "What is the fire safety procedure for a large crowd?"
+        ],
+        "reasoning": "Corpus query identified as REQUIREMENTS. Decomposed into 1 sub-queries.",
+        "latency_ms": 0.11959199764532968,
+        "is_final": true
+      },
+      {
+        "event": "retrieval",
+        "session_id": "d3",
+        "sub_queries": [
+          "What is the fire safety procedure for a large crowd?"
+        ],
+        "is_refinement": false,
+        "refinement_type": "none",
+        "evidence_count": 4,
+        "gate_status": "supported",
+        "should_synthesize": true,
+        "chunks": [
+          {
+            "chunk_id": "event_guide_p026_01",
+            "doc_id": "event_guide",
+            "section": "Event Planning Guide",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "wa_events_guidelines_2022_p160_01",
+            "doc_id": "wa_events_guidelines_2022",
+            "section": "B",
+            "score": 0.8,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "event_guide_p012_01",
+            "doc_id": "event_guide",
+            "section": "Event Planning Guide",
+            "score": 0.8,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          },
+          {
+            "chunk_id": "wa_events_guidelines_2022_p140_01",
+            "doc_id": "wa_events_guidelines_2022",
+            "section": "B",
+            "score": 1.0,
+            "sub_query_id": 0,
+            "retrieval_method": "rrf"
+          }
+        ],
+        "latency_ms": 15.043584997329162,
+        "is_final": true
+      },
+      {
+        "event": "claim",
+        "session_id": "d3",
+        "claim_id": 1,
+        "text": "<\n<\nAppendix 4 \nStewards\u2019 Briefing\nThese suggestions will be of assistance \u2013 there may be \nother issues you would want to include, as this is not a \ndefinitive list.",
+        "cites": [
+          "[DOC: Event Planning Guide | Section: Event Planning Guide | Page: 26 | Scope: International | Chunk: event_guide_p026_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d3",
+        "claim_id": 1,
+        "status": "SUPPORTED",
+        "text": "<\n<\nAppendix 4 \nStewards\u2019 Briefing\nThese suggestions will be of assistance \u2013 there may be \nother issues you would want to include, as this is not a \ndefinitive list.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Event Planning Guide | Section: Event Planning Guide | Page: 26 | Scope: International | Chunk: event_guide_p026_01]"
+        ],
+        "latency_ms": 0.4282970003259834
+      },
+      {
+        "event": "claim",
+        "session_id": "d3",
+        "claim_id": 2,
+        "text": "Glossary\nApplication for food \nand drink outlets\nApplied through the Food Act 2008 and any local government laws\nBump in (load in)\nThis involves the pre-event physical activities, delivery and construction of all the \ninfrastructure and equipment necessary for the event and ensuring that all licenses \nare finalised\nBump out (load out)\nThis comprises the breakdown of facilities, clean-up and making good any damage\nCamping approval\nSpecific approval must be obtained from the local government to allow camping on \nnon-camping areas\nConcert\nA concert is a performance of musical entertainment\nConsequence\nThe outcome of an event that affects objectives; that is, the result if the incident \nhappens.",
+        "cites": [
+          "[DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 160 | Scope: International | Chunk: wa_events_guidelines_2022_p160_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d3",
+        "claim_id": 2,
+        "status": "SUPPORTED",
+        "text": "Glossary\nApplication for food \nand drink outlets\nApplied through the Food Act 2008 and any local government laws\nBump in (load in)\nThis involves the pre-event physical activities, delivery and construction of all the \ninfrastructure and equipment necessary for the event and ensuring that all licenses \nare finalised\nBump out (load out)\nThis comprises the breakdown of facilities, clean-up and making good any damage\nCamping approval\nSpecific approval must be obtained from the local government to allow camping on \nnon-camping areas\nConcert\nA concert is a performance of musical entertainment\nConsequence\nThe outcome of an event that affects objectives; that is, the result if the incident \nhappens.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 160 | Scope: International | Chunk: wa_events_guidelines_2022_p160_01]"
+        ],
+        "latency_ms": 0.4319850013416726
+      },
+      {
+        "event": "claim",
+        "session_id": "d3",
+        "claim_id": 3,
+        "text": "<\n<\nIf possible find someone in your group who has been \ntrained in risk assessments and deals with them as part \nof their job.",
+        "cites": [
+          "[DOC: Event Planning Guide | Section: Event Planning Guide | Page: 12 | Scope: International | Chunk: event_guide_p012_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d3",
+        "claim_id": 3,
+        "status": "SUPPORTED",
+        "text": "<\n<\nIf possible find someone in your group who has been \ntrained in risk assessments and deals with them as part \nof their job.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Event Planning Guide | Section: Event Planning Guide | Page: 12 | Scope: International | Chunk: event_guide_p012_01]"
+        ],
+        "latency_ms": 0.3844839993689675
+      },
+      {
+        "event": "claim",
+        "session_id": "d3",
+        "claim_id": 4,
+        "text": "Supporting tool 17: crowd management procedure\nThe following procedure may be applied to personnel involved in crowd management and safety at any event.",
+        "cites": [
+          "[DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 140 | Scope: International | Chunk: wa_events_guidelines_2022_p140_01]"
+        ],
+        "intent_id": 0
+      },
+      {
+        "event": "verification",
+        "session_id": "d3",
+        "claim_id": 4,
+        "status": "SUPPORTED",
+        "text": "Supporting tool 17: crowd management procedure\nThe following procedure may be applied to personnel involved in crowd management and safety at any event.",
+        "reasoning": "Local heuristic check (confidence: 1.00).",
+        "cites": [
+          "[DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 140 | Scope: International | Chunk: wa_events_guidelines_2022_p140_01]"
+        ],
+        "latency_ms": 0.37808500201208517
+      },
+      {
+        "event": "answer",
+        "session_id": "d3",
+        "answer_version": 1,
+        "answer": "- <\n<\nAppendix 4 \nStewards\u2019 Briefing\nThese suggestions will be of assistance \u2013 there may be \nother issues you would want to include, as this is not a \ndefinitive list. [DOC: Event Planning Guide | Section: Event Planning Guide | Page: 26 | Scope: International | Chunk: event_guide_p026_01]\n- Glossary\nApplication for food \nand drink outlets\nApplied through the Food Act 2008 and any local government laws\nBump in (load in)\nThis involves the pre-event physical activities, delivery and construction of all the \ninfrastructure and equipment necessary for the event and ensuring that all licenses \nare finalised\nBump out (load out)\nThis comprises the breakdown of facilities, clean-up and making good any damage\nCamping approval\nSpecific approval must be obtained from the local government to allow camping on \nnon-camping areas\nConcert\nA concert is a performance of musical entertainment\nConsequence\nThe outcome of an event that affects objectives; that is, the result if the incident \nhappens. [DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 160 | Scope: International | Chunk: wa_events_guidelines_2022_p160_01]\n- <\n<\nIf possible find someone in your group who has been \ntrained in risk assessments and deals with them as part \nof their job. [DOC: Event Planning Guide | Section: Event Planning Guide | Page: 12 | Scope: International | Chunk: event_guide_p012_01]\n- Supporting tool 17: crowd management procedure\nThe following procedure may be applied to personnel involved in crowd management and safety at any event. [DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 140 | Scope: International | Chunk: wa_events_guidelines_2022_p140_01]\n\n*(Answer Version: v1)*",
+        "citations": [
+          "[DOC: Event Planning Guide | Section: Event Planning Guide | Page: 12 | Scope: International | Chunk: event_guide_p012_01]",
+          "[DOC: Event Planning Guide | Section: Event Planning Guide | Page: 26 | Scope: International | Chunk: event_guide_p026_01]",
+          "[DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 140 | Scope: International | Chunk: wa_events_guidelines_2022_p140_01]",
+          "[DOC: Guidelines for Events in Western Australia 2022 | Section: B | Page: 160 | Scope: International | Chunk: wa_events_guidelines_2022_p160_01]"
+        ],
+        "uncertainty": [],
+        "is_refinement": false,
+        "total_latency_ms": 20.45159000044805
+      }
+    ]
+  }
+}

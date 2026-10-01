@@ -1,21 +1,8 @@
 """
-Structured Telemetry and Observability Test Suite (Milestone 9)
-
-================================================================================
-TEST COVERAGE:
-1. JSONL file creation and formatting
-2. Independent JSON validity for each logged event line
-3. T0 Gate telemetry event recording (T0_GATE)
-4. T1 Decision telemetry event recording (T1_DECISION)
-5. Retrieval telemetry event recording (RETRIEVAL)
-6. Sub-stage retrieval telemetry events (RETRIEVAL_BM25, RETRIEVAL_DENSE, RETRIEVAL_RRF)
-7. Synthesis telemetry event recording (SYNTHESIS)
-8. Claim verification telemetry event recording (CLAIM_VERIFY)
-9. Answer version progression across multiple turns (v1 -> v2)
-10. End-to-end latency event recording (E2E)
-11. Multi-session isolation (logs/session_<id>.jsonl separation)
-12. HTTP Telemetry endpoint validation (GET /telemetry/{session_id})
-================================================================================
+Validates Structured Telemetry and Observability Side-Channel in Streaming Live RAG.
+Ensures non-blocking JSONL logging of pipeline events (T0_GATE, T1_DECISION, RETRIEVAL,
+SYNTHESIS, CLAIM_VERIFY, E2E), per-stage latency tracking, and session isolation.
+Demonstrates: Machine-readable audit trails, latency instrumentation, and inspection endpoints.
 """
 
 import os

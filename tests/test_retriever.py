@@ -1,3 +1,10 @@
+"""
+Validates Hybrid Retrieval and Reciprocal Rank Fusion (RRF) in Streaming Live RAG.
+Ensures BM25 keyword matching and dense semantic embeddings are retrieved independently,
+fused per sub-query via RRF, and deduplicated with minimum evidence guarantees.
+Demonstrates: Hybrid retrieval, isolated sub-query ranking, and evidence starvation prevention.
+"""
+
 import os
 import sys
 import asyncio
@@ -100,17 +107,18 @@ async def test_retriever_pipeline():
     assert retriever.bm25_index is not None
     assert retriever.embeddings is not None
 
-    assert len(retriever.chunk_metadata) == 40
-    assert retriever.bm25_index.corpus_size == 40
-    assert retriever.embeddings.shape == (40, 768)
+    assert len(retriever.chunk_metadata) > 0
+    assert retriever.bm25_index.corpus_size == len(retriever.chunk_metadata)
+    assert retriever.embeddings.shape == (len(retriever.chunk_metadata), 768)
 
     # Test BM25
-    bm25_res = await retriever.retrieve_bm25_for_sub_query("cancellation policy", top_k=4)
+    bm25_res = await retriever.retrieve_bm25_for_sub_query("fire safety", top_k=4)
     assert len(bm25_res) > 0
 
     # Test Dense
-    dense_res = await retriever.retrieve_dense_for_sub_query("cancellation policy", top_k=4)
+    dense_res = await retriever.retrieve_dense_for_sub_query("fire safety", top_k=4)
     assert len(dense_res) > 0
+
 
     # Test RRF
     rrf_res = retriever.compute_rrf(bm25_res, dense_res)

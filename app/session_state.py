@@ -37,6 +37,7 @@ WHY THIS ARCHITECTURE:
 ================================================================================
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Set
 from enum import Enum
@@ -61,6 +62,14 @@ class RetrievedEvidence:
     score: float
     sub_query_id: int
     retrieval_method: str  # "bm25", "dense", "rrf", "rerank"
+    page_number: int = 1
+    geographic_scope: str = "General"
+    scope_level: str = "general"
+    source_priority: int = 4
+    source_file: str = ""
+    source_path: str = ""
+    document_title: Optional[str] = None
+
 
 
 @dataclass
@@ -81,13 +90,19 @@ class StructuredClaim:
 class SessionState:
     """
     Encapsulates all persistent state for a single live streaming session.
+    Distinguishes active context vs historical/superseded context.
     """
     session_id: str
     answer_version: int = 0
     transcript_history: List[str] = field(default_factory=list)
     covered_intents: List[str] = field(default_factory=list)
-    evidence_pool: Dict[str, RetrievedEvidence] = field(default_factory=dict)  # chunk_id -> RetrievedEvidence
+    active_intents: List[str] = field(default_factory=list)
+    superseded_intents: List[str] = field(default_factory=list)
+    evidence_pool: Dict[str, RetrievedEvidence] = field(default_factory=dict)  # All historical evidence
+    active_evidence_pool: Dict[str, RetrievedEvidence] = field(default_factory=dict)  # Active turn evidence
+    superseded_evidence_pool: Dict[str, RetrievedEvidence] = field(default_factory=dict)  # Stale/superseded
     claims: List[StructuredClaim] = field(default_factory=list)
+    active_claims: List[StructuredClaim] = field(default_factory=list)
     citations: Set[str] = field(default_factory=set)
     previous_answer: Optional[str] = None
     uncertainty_notes: List[str] = field(default_factory=list)
@@ -96,35 +111,94 @@ class SessionState:
         """
         Returns a formatted summary of already satisfied intents for the Controller context.
         """
-        if not self.covered_intents:
+        if not self.active_intents and not self.covered_intents:
             return "None"
-        return ", ".join(self.covered_intents)
+        return ", ".join(self.active_intents or self.covered_intents)
 
-    def add_evidence(self, chunks: List[RetrievedEvidence]) -> None:
+    def supersede_active_context(self, new_intent: Optional[str] = None) -> None:
         """
-        Merges new chunks into the evidence pool without duplicating existing chunk IDs.
-        Preserves highest score when duplicates occur.
+        Marks all current active evidence and intents as superseded/stale when
+        a user replacement or correction occurs.
         """
-        for chunk in chunks:
-            if chunk.chunk_id not in self.evidence_pool:
-                self.evidence_pool[chunk.chunk_id] = chunk
+        for k, v in self.active_evidence_pool.items():
+            self.superseded_evidence_pool[k] = v
+        self.active_evidence_pool.clear()
+
+        for intent in self.active_intents:
+            if intent not in self.superseded_intents:
+                self.superseded_intents.append(intent)
+        self.active_intents.clear()
+        if new_intent and new_intent.strip():
+            self.active_intents.append(new_intent.strip())
+
+        self.active_claims.clear()
+        self.citations.clear()
+
+    def remove_intent_context(self, removed_topic: str) -> None:
+        """
+        Explicitly removes a specific topic from active intents and moves
+        associated evidence chunks to superseded pool.
+        """
+        clean_topic = removed_topic.strip().lower()
+        if not clean_topic:
+            return
+
+        topic_words = set(re.findall(r"\w+", clean_topic))
+        # Move matching active chunks to superseded pool
+        remaining_active = {}
+        for chunk_id, chunk in self.active_evidence_pool.items():
+            chunk_words = set(re.findall(r"\w+", chunk.text.lower()))
+            if topic_words.intersection(chunk_words):
+                self.superseded_evidence_pool[chunk_id] = chunk
             else:
-                # Update with higher score or richer metadata if available
-                if chunk.score > self.evidence_pool[chunk.chunk_id].score:
-                    self.evidence_pool[chunk.chunk_id] = chunk
+                remaining_active[chunk_id] = chunk
+        self.active_evidence_pool = remaining_active
+
+        # Update active intents
+        new_active_intents = []
+        for intent in self.active_intents:
+            if any(w in intent.lower() for w in topic_words):
+                self.superseded_intents.append(intent)
+            else:
+                new_active_intents.append(intent)
+        self.active_intents = new_active_intents
+
+        # Filter active claims
+        self.active_claims = [c for c in self.active_claims if not any(w in c.text.lower() for w in topic_words)]
+        self.citations = {cite for c in self.active_claims for cite in c.cites}
+
+    def add_evidence(self, chunks: List[RetrievedEvidence], is_supersession: bool = False) -> None:
+        """
+        Merges new chunks into the active evidence pool and historical evidence pool.
+        If is_supersession is True, replaces the active pool with the newly retrieved chunks.
+        """
+        if is_supersession:
+            self.supersede_active_context()
+
+        for chunk in chunks:
+            # Always update historical pool
+            if chunk.chunk_id not in self.evidence_pool or chunk.score > self.evidence_pool[chunk.chunk_id].score:
+                self.evidence_pool[chunk.chunk_id] = chunk
+
+            # Update active pool
+            if chunk.chunk_id not in self.active_evidence_pool or chunk.score > self.active_evidence_pool[chunk.chunk_id].score:
+                self.active_evidence_pool[chunk.chunk_id] = chunk
+
+    def set_active_claims(self, new_claims: List[StructuredClaim]) -> None:
+        """
+        Sets the active claims for the current answer version and updates citations.
+        """
+        self.active_claims = list(new_claims)
+        self.claims.extend([c for c in new_claims if c not in self.claims])
+        self.citations = {cite for c in new_claims for cite in c.cites}
 
     def update_claims(self, new_claims: List[StructuredClaim]) -> None:
         """
         Appends or updates structured claims in session state and registers unique citations.
         """
-        claim_map = {c.id: c for c in self.claims}
-        for claim in new_claims:
-            claim_map[claim.id] = claim
-            for cite in claim.cites:
-                self.citations.add(cite)
-        self.claims = list(claim_map.values())
+        self.set_active_claims(new_claims)
 
-    def record_refinement(self, new_transcript_chunk: str) -> None:
+    def record_refinement(self, new_transcript_chunk: str, is_supersession: bool = False) -> None:
         """
         Increments answer_version and registers the incoming transcript chunk into history.
         """
@@ -139,8 +213,13 @@ class SessionState:
         self.answer_version = 0
         self.transcript_history.clear()
         self.covered_intents.clear()
+        self.active_intents.clear()
+        self.superseded_intents.clear()
         self.evidence_pool.clear()
+        self.active_evidence_pool.clear()
+        self.superseded_evidence_pool.clear()
         self.claims.clear()
+        self.active_claims.clear()
         self.citations.clear()
         self.previous_answer = None
         self.uncertainty_notes.clear()
